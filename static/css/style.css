@@ -1,0 +1,75 @@
+/* My defaults */
+:root {
+	font-family: sans-serif;
+	font-size: 17px;
+}
+body {
+	min-height: 100vh;
+}
+
+section {
+	line-height: 1.5em;
+}
+
+.icon-button {
+	font-size: 25px;
+	color: black;
+}
+:is(h1,h2,h3,h4,h5,h6) + * {
+	margin-top: .5em;
+}
+
+:root {
+	--default-border-width: 5px;
+	--make-it-responsive-width: 800px; /* tied to max-width media query */
+	--default-border-color: black;
+}
+.make-it-responsive {
+	max-width: var(--make-it-responsive-width);
+	box-sizing: border-box; /* so that padding doesn't affect width */
+	width: -moz-available;
+    width: -webkit-fill-available;
+
+}
+.make-it-responsive-bordered {
+	max-width: var(--make-it-responsive-width);
+	box-sizing: border-box; /* so that padding doesn't affect width */
+	border-left: var(--default-border-width) solid var(--default-border-color);
+	border-right: var(--default-border-width) solid var(--default-border-color);
+}
+@media (max-width: 800px) {
+	.make-it-responsive-bordered {
+		border-left: none;
+		border-right: none;
+	}
+}
+
+
+
+.outline-red {
+	outline-color: red;
+	outline-style: solid;
+	outline-width: 5px;
+	outline-offset: -5px;
+}
+
+
+
+.flex-row {
+	display: flex;
+	flex-direction: row;
+}
+.flex-row-center {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+.flex-col {
+	display: flex;
+	flex-direction: column;
+}
+.flex-col-center {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
