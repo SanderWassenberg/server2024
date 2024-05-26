@@ -3,20 +3,50 @@
 	font-family: sans-serif;
 	font-size: 17px;
 }
-body {
-	min-height: 100vh;
-}
+html { height: 100%; }
+body { min-height: 100%; }
 
 section {
 	line-height: 1.5em;
 }
 
+:is(h1,h2,h3,h4,h5,h6) + * {
+	margin-top: .5em;
+}
+
+button, input[type=submit] {
+	border: 5px solid black;
+	background: white;
+	padding: 10px;
+	font-size: inherit;
+}
+:is(button, input[type=submit]):hover:not([disabled]) {
+	cursor: pointer;
+	background: lemonchiffon;
+}
+
+:is(button, input[type=submit])[disabled] {
+	background: #838288;
+	border-color: #55555f;
+	color: #6d6d6d;
+}
+
+input[type=text], input[type=email], input[type=password], textarea {
+	border: 5px solid black;
+	padding: 5px;
+	font-size: inherit;
+}
+:is(input[type=text], input[type=email], input[type=password], textarea)[disabled] {
+	background: #8e8d91;
+	color: #6d6d6d;
+	border-color: #55555f;
+}
+
+
+
 .icon-button {
 	font-size: 25px;
 	color: black;
-}
-:is(h1,h2,h3,h4,h5,h6) + * {
-	margin-top: .5em;
 }
 
 :root {
@@ -29,11 +59,13 @@ section {
 	box-sizing: border-box; /* so that padding doesn't affect width */
 	width: -moz-available;
     width: -webkit-fill-available;
-
 }
 .make-it-responsive-bordered {
 	max-width: var(--make-it-responsive-width);
 	box-sizing: border-box; /* so that padding doesn't affect width */
+	width: -moz-available;
+    width: -webkit-fill-available;
+
 	border-left: var(--default-border-width) solid var(--default-border-color);
 	border-right: var(--default-border-width) solid var(--default-border-color);
 }
@@ -72,4 +104,52 @@ section {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
+}
+
+
+
+.spinner {
+	box-sizing: border-box;
+	aspect-ratio: 1;
+	border-radius: 50%;
+	border-width: 5px;
+	border-style: solid;
+	border-color: black #0000 #0000;
+	animation-name: spin;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+
+	animation-duration: 1000ms;
+}
+.spinner::before {
+	content: '';
+	display: block;
+
+	box-sizing: border-box;
+	aspect-ratio: 1;
+	border-radius: 50%;
+	border-width: 5px;
+	border-style: solid;
+	border-color: black #0000 #0000;
+	animation-name: spin;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+
+	animation-duration: 400ms;
+	animation-direction: reverse;
+}
+
+.wiggle {
+	animation: wiggle .15s 3 ease-in-out;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(1turn); }
+}
+@keyframes wiggle {
+	0%   { transform: translateY(0); }
+	25%  { transform: translateY(-5px); }
+	75%  { transform: translateY(5px); }
+	100% { transform: translateY(0); }
 }

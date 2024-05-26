@@ -1,10 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Home</title>
+<link rel="stylesheet" href="/css/reset.css">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="/fontawesome/css/solid.min.css">
+<script type="module" src="/js/modules/contact_page.js"></script>
+<title>Contact</title>
 </head>
-<body>
-<h1>Contact page</h1>
+<body class="flex-col">
+	<div class="flex-row-center" style="border-bottom: 5px solid black; height: 200px;">
+		<div class="make-it-responsive flex-row" style="padding: 20px;">
+			<a href="/" class="icon-button" style="position: absolute;"><i class="fa-solid fa-house"></i></a>
+			<div class="flex-col-center" style="flex-grow: 1; gap: 10px; align-items: center;">
+				<div style="border: 5px solid black; border-radius: 50%; height: 80%; aspect-ratio: 1; background-image: url('/img/gentleman.gif'); background-size: cover; background-position: center;"></div>
+				<h1>Pietje Puk</h1>
+			</div>
+		</div>
+	</div>
+	<div class="flex-row-center" style="flex: 1;">
+		<main class="make-it-responsive-bordered" style="padding: 20px;">
+			<div class="flex-col" style="gap:20px;">
+				<section>
+					<a href="/profile_page" class="icon-button" style="float: left;"><i class="fa-solid fa-arrow-left"></i></a>
+					<div class="flex-row-center" style="margin-bottom: 5px;/* to make float left no screw with the stuff below*/"><h2>Contact</h2></div>
+					<form id="contact_form" method="dialog" class="flex-col" style="gap: 20px;">
+						<div><label>Onderwerp<br>
+						<input required type=text name="subject" maxlength="200" style="width: 100%; box-sizing: border-box;"></label></div>
+
+						<div><label>Jouw e-mail adres<br>
+						<input required type=email name="email" maxlength="100" style="width: 100%; box-sizing: border-box;"></label></div>
+
+						<div><label>Bericht<br>
+						<textarea required name="message" maxlength="600" style="width: 100%; max-width: 100%; box-sizing: border-box; height: 250px; resize: vertical;"></textarea></label></div>
+
+						<div class="flex-row" style="justify-content: end; align-items: start; gap: 20px;">
+							<p hidden id="notif" style="color: red;">This is a response message</p>
+							<div hidden class="spinner" style="align-self: center; width: 35px;"></div>
+							<button id="submit" type=submit>Verzenden</button>
+						</div>
+					</form>
+				</section>
+			</div>
+		</main>
+	</div>
+
 </body>
 </html>
