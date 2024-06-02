@@ -1,0 +1,19 @@
+// This is my own .whatever format, because I hate all other formats.
+
+// In this config format, you put values like this (minus the preceding //):
+// Foo : Bar
+
+// As you can see, it supports comments, but only at the start of a line
+// Foo : Bar // this is considered part of the value, don't do this
+
+// How a value is parsed is purely based on the type that the Config struct in the program expects for that name
+// Foo: 1
+// This will be parsed as an int if Context were { Foo int }, but as a string if Context were { Foo string }. No "quotes" needed!
+// Quotes aren't just not needed, we don't support them. They become part of the string itself, just like any other character.
+
+
+// Fill out the lines below, then rename this file to config.whatever
+
+SendGrid_api_key: SG.put_your_api_key.here_please
+Port:             8080
+

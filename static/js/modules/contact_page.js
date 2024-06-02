@@ -1,9 +1,17 @@
 import * as util from "./util.js";
+import { Captcha } from "./captcha.js"; // though unused, this orders initialization of modules such that the Captcha class is initialized before this code is, which is required for the onsubmit callback tobe properly set
 
 const form    = document.querySelector("#contact_form");
 const spinner = form.querySelector(".spinner");
+const subject = form.querySelector("#subject");
+const email   = form.querySelector("#email");
+const message = form.querySelector("#message");
 const notif   = form.querySelector("#notif");
-const submit  = form.querySelector("#submit");
+const submit  = form.querySelector("#submit_btn");
+const captcha = form.querySelector("my-captcha");
+
+captcha.onsubmit = () => submit.click();
+// form.submit() doesn't work, gives an exception titled NS_ERROR_FAILURE, no other information. Can't find online what exactly is happening. This works.
 
 function start_loading() {
 	for (let i = 0; i < form.elements.length; i++) { form.elements[i].disabled = true; }
@@ -18,38 +26,13 @@ function stop_loading() {
 }
 
 function set_notif(text, color) {
+	notif.classList.remove("wiggle");
 	util.hide(notif, false);
 	notif.innerText = text;
 	notif.style.color = color;
 	if (color === "red") {
-		notif.classList.remove("wiggle");
 		void notif.offsetWidth; // See: https://css-tricks.com/restart-css-animation/
 		notif.classList.add("wiggle");
-	}
-}
-
-// returns an error string or nothing.
-function verify(data) {
-	// JS works with utf16 strings, so lengths are not actually representative of the amount of characters. "😃" is counted as length 2.
-	// On the sever we count the actual utf8 characters, we don't do that here because the maxlength attribute on <input> elements also uses utf16,
-	// so we keep this check the same as that one. The html tag is quite easy to remove with the inspector though, which is why also do the checks here. 3 layers of defense!
-	{	const len_limit = 200;
-		const str = data.get("subject");
-		if (str.length > len_limit) return `Subject length is ${str.length}, may at most be ${len_limit}`;
-	}
-
-	{	const len_limit = 600;
-		const str = data.get("message");
-		if (str.length > len_limit) return `Message length is ${str.length}, may at most be ${len_limit}`;
-	}
-
-	{	const len_limit = 100;
-		const str = data.get("email");
-		if (str.length > len_limit) return `Message length is ${str.length}, may at most be ${len_limit}`;
-
-		if (!util.is_valid_email(str)) {
-			return "Invalid email address.";
-		}
 	}
 }
 
@@ -58,12 +41,31 @@ async function send_form(e) {
 
 	let data = new FormData(form);
 
-	{	const err = verify(data);
-		if (err) {
-			set_notif(err, "red");
-			return;
-		}
+	// JS works with utf16 strings, so lengths are not actually representative of the amount of characters. "😃" is counted as length 2.
+	// On the severside we count the actual utf8 characters, we don't do that here because the maxlength attribute on <input> elements also uses utf16,
+	// and it is more intuitive to the user to keep this check the same as that one. The maxlength html tag is quite easy to remove with the inspector though,
+	// which is why we still do the checks here in js. 3 layers of defense!
+	function validate_length(elem, name, len_limit) {
+		const str = data.get(name);
+		if (str.length <= len_limit) return true;
+		set_notif(`Subject length is ${str.length}, may at most be ${len_limit}`, "red");
+		elem.focus();
 	}
+
+	if (!validate_length(subject, "subject", 200)) return;
+	if (!validate_length(email,   "email",   100)) return;
+	if (!validate_length(message, "message", 600)) return;
+
+	if (!util.is_valid_email(data.get("email"))) {
+		set_notif("Invalid email address", "red");
+		email.focus();
+		return;
+	}
+
+	if (!captcha.verify(err => {
+		set_notif(err, "red");
+		captcha.focus();
+	})) return;
 
 	start_loading();
 	// NOTE: This also disables form elements. FormData ignores disabled elements,

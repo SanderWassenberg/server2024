@@ -35,6 +35,31 @@ export function byte_length(string) {
 	return new Blob([string]).size;
 }
 
+// returns a function which generates copies of the html in the template string.
+//	const generate_html = new_template(`<div>a bunch of html</div>`);
+//	elem_a.append(generate_html())
+//	elem_b.append(generate_html())
+export function new_template(template_string) {
+    const template = document.createElement('template');
+    template.innerHTML = template_string;
 
+    return () => template.content.cloneNode(true);
+}
 
+export function random_in_range(min, max) {
+    const diff = max - min;
+    return min + Math.random() * diff;
+}
+export function random_int_in_range(min, max) {
+    const diff = max - min;
+    return Math.floor(min + Math.random() * diff);
+}
+
+export function pick_random(arr_or_string) {
+	return arr_or_string[Math.floor(Math.random() * arr_or_string.length)]
+}
+
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
