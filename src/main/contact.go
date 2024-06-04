@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"io"
+	// "io"
+	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
-	SG "src/sendgrid/sendgrid-go"
-	SGmail "src/sendgrid/sendgrid-go/helpers/mail"
+	"unicode/utf8"
+	SG "github.com/sendgrid/sendgrid-go"
+	SGmail "github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 // See:
@@ -18,7 +21,7 @@ import (
 // To ensure the whole string is matched and not a portion: https://stackoverflow.com/questions/447250/matching-exact-string-with-javascript
 var email_regexp *regexp.Regexp = regexp.MustCompile(`^(?:[a-z0-9!#$%&'*+/=?^_` + "`" + `{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_` + "`" + `{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$`);
 
-type Contact_Data struct {
+type ContactData struct {
 	Subject string `json:"subject"`
 	Message string `json:"message"`
 	Email   string `json:"email"`
@@ -26,50 +29,51 @@ type Contact_Data struct {
 
 
 func contact_func(rw http.ResponseWriter, req *http.Request) {
-	body, _ := io.ReadAll(req.Body)
 
-	var contact_data Contact_Data
-	if err := json.Unmarshal(body, &contact_data); err != nil {
-		fmt.Printf("Error: %v\n", err.Error())
-		respond(rw, http.StatusBadRequest, err.Error());
+	var cd ContactData
+	if err := json.NewDecoder(req.Body).Decode(&cd); err != nil {
+		errstr := err.Error()
+		log.Printf("Error: %v\n", errstr)
+		respond(rw, http.StatusBadRequest, errstr);
 		return;
 	}
 
-	if contact_data.Subject == "asd" {
+	if cd.Subject == "asd" {
 		respond(rw, http.StatusOK, "Let's pretend we mailed that one. ;)");
 		time.Sleep(2 * time.Second)
 		return
 	}
-	if contact_data.Subject == "teapot" {
-		respond(rw, http.StatusTeapot, "Would you like milk with that?");
+	if cd.Subject == "teapot" {
+		respond(rw, http.StatusTeapot, "I'm a teapot. C(^)/");
 		time.Sleep(2 * time.Second)
 		return
 	}
 
-	if msg, args := send_email(&contact_data); msg != "" {
-		respond_fmt(rw, http.StatusBadRequest, msg, args...)
+	if count, ok := verify_utf8_string_len(cd.Subject, 200); !ok {
+		respond_fmt(rw, http.StatusBadRequest, "Subject length should be <200, was %v", count)
+		return
+	}
+	if count, ok := verify_utf8_string_len(cd.Message, 600); !ok {
+		respond_fmt(rw, http.StatusBadRequest, "Message length should be <600, was %v", count)
+		return
+	}
+	if count, ok := verify_utf8_string_len(cd.Email, 100); !ok {
+		respond_fmt(rw, http.StatusBadRequest, "Email length should be <100, was %v", count)
+		return
+	}
+	if ok := email_regexp.MatchString(cd.Email); !ok {
+		respond(rw, http.StatusBadRequest, "Invalid email")
 		return
 	}
 
-	respond(rw, http.StatusOK, "We mailed that bad boi real good!");
-	_ = time.Second
+	if ok := send_contact_email(&cd); ok {
+		respond(rw, http.StatusOK, "We mailed that bad boi real good!")
+	} else {
+		respond(rw, http.StatusInternalServerError, "An error occured when sending the email.")
+	}
 }
 
-// return values are effectively an error, but I didn't feel like wrapping them.
-func send_email(cd *Contact_Data) (msg string, args []any) {
-	if count, ok := verify_utf8_string_len(cd.Subject, 200); !ok {
-		return "subject length should be <200, was %v", []any{count}
-	}
-	if count, ok := verify_utf8_string_len(cd.Message, 600); !ok {
-		return "message length should be <600, was %v", []any{count}
-	}
-	if count, ok := verify_utf8_string_len(cd.Email, 100); !ok {
-		return "email length should be <100, was %v", []any{count}
-	}
-	if ok := email_regexp.MatchString(cd.Email); !ok {
-		return "invalid email", nil
-	}
-
+func send_contact_email(cd *ContactData) (ok bool) {
 	from := SGmail.NewEmail("Showcase website", "sander.wassenberg@windesheim.nl")
 	to   := SGmail.NewEmail("Pietje Puk",       "sander.wassenberg@windesheim.nl")
 
@@ -81,22 +85,59 @@ You can reply to them by sending an email to <a href="mailto:%[2]v">%[2]v</a>
 `, html.EscapeString(cd.Message), cd.Email)
 
 	message := SGmail.NewSingleEmail(from, cd.Subject, to, "", htmlContent)
-
-	client := SG.NewSendClient(config.SendGrid_api_key)
-
+	client  := SG.NewSendClient(config.SendGrid_api_key)
 	response, err := client.Send(message)
 
 	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println("Succesfully sent an email!")
-		fmt.Println("Response:", response.StatusCode, http.StatusText(response.StatusCode))
-		fmt.Println("Body:", response.Body)
-		fmt.Println("Headers:", response.Headers)
-		for k, v := range response.Headers {
-			fmt.Printf("%v: %v\n", k, v)
-		}
+		log.Printf("Error sending email with client.Send(): %v", err)
+		return false
 	}
 
-	return "", nil
+	b := strings.Builder{}
+	fmt.Fprintf(&b, "Succesfully sent an email!\nResponse: %v %v\nBody:\n`%v`\nHeaders:\n", response.StatusCode, http.StatusText(response.StatusCode), response.Body)
+	for k, v := range response.Headers {
+		fmt.Fprintf(&b, "- %v: %v\n", k, v)
+	}
+	log.Print(b.String())
+
+	return true
+}
+
+// returns utf8 length or "way too big" if the byte length is already more than 4x the limit
+func verify_utf8_string_len(str string, lim int) (length any, ok bool) {
+	if len(str) > lim * 4 { // utf8 uses at most 4 bytes per char, so more bytes than 4*limit is guaranteed to have more characters.
+		return "way too big", false
+	}
+	l := utf8.RuneCountInString(str)
+	return l, (l <= lim)
+}
+
+func verify_api_key() {
+	// How to verify: https://stackoverflow.com/questions/61658558/how-to-test-sendgrid-api-key-is-valid-or-not-without-sending-emails
+
+	log.Println("Verifying api key with Sendrgid servers...")
+
+	req, err := http.NewRequest("GET", "https://api.sendgrid.com/v3/scopes", nil/*body io.Reader*/)
+	if err != nil {
+		// req.Header.Add("on-behalf-of", "The subuser's username. This header generates the API call as if the subuser account was making the call")
+		log.Printf("failed NewRequest(): %v\nValidity of Sendgrid API key remains unknown", err)
+		return
+	}
+	req.Header.Set("authorization", "Bearer " + config.SendGrid_api_key)
+
+	res, err := http.DefaultClient.Do(req);
+	if err != nil {
+		log.Printf("failed client.Do(): %v\nValidity of Sendgrid API key remains unknown", err)
+		return
+	}
+
+	defer res.Body.Close()
+
+	api_key_ok := res.StatusCode >= 200 && res.StatusCode < 300
+
+	if api_key_ok {
+		log.Print("API key works, mail sending functionality should work.")
+	} else {
+		log.Print("WARNING: API key doesn't work, mail sending functionality will not work. (Sedgrid responded with %v %v)", res.StatusCode, http.StatusText(res.StatusCode))
+	}
 }

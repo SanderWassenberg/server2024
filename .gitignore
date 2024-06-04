@@ -24,4 +24,9 @@ go.work.sum
 # env file
 .env
 
+
+# it's secret, duh!
 secret.*
+
+# sqlite db files
+*.db

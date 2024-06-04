@@ -1,5 +1,0 @@
-I yoinked this code from: https://github.com/sendgrid/sendgrid-go
-and also: https://github.com/sendgrid/rest
-Had to keep the licenses cuz of legal reasons 'n all that
-
-I don't like having dependencies.
