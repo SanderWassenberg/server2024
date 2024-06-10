@@ -9,11 +9,16 @@ import (
 )
 
 type Config struct {
-	SendGrid_api_key string
-	Port             string
+	SendGrid_api_key        string
+	Port                    string
+
+	Argon2_default_iterations uint32
+	Argon2_default_threads    uint8
+	Argon2_default_memory_KiB uint32
+	Argon2_default_key_len    uint32
 }
 
-var config Config
+var config = Config{}
 
 func load_config_or_exit() {
 	const filename = "secret.config"

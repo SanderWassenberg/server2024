@@ -111,7 +111,24 @@ func LoadConfig[T any](config_filename string, config_ptr *T) error {
 				} else {
 					field.SetInt(v)
 				}
-
+			case reflect.Uint:
+				if v, err := strconv.ParseUint(value, 0, 0); err != nil {
+					util.Err_add(&errs, "%v:%v: Error parsing integer \"%v\"", config_filename, line_num, name)
+				} else {
+					field.SetUint(v)
+				}
+			case reflect.Uint8:
+				if v, err := strconv.ParseUint(value, 0, 8); err != nil {
+					util.Err_add(&errs, "%v:%v: Error parsing integer \"%v\"", config_filename, line_num, name)
+				} else {
+					field.SetUint(v)
+				}
+			case reflect.Uint32:
+				if v, err := strconv.ParseUint(value, 0, 32); err != nil {
+					util.Err_add(&errs, "%v:%v: Error parsing integer \"%v\"", config_filename, line_num, name)
+				} else {
+					field.SetUint(v)
+				}
 			case reflect.Float64:
 				if v, err := strconv.ParseFloat(value, 64); err != nil {
 					util.Err_add(&errs, "%v:%v: Error parsing float \"%v\"", config_filename, line_num, name)

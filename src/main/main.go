@@ -7,17 +7,23 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	// "strconv"
 	"strings"
 	// "sync"
 	// "sync/atomic"
 	"log"
 	"time"
 
+	"src/pwhash"
+
+
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3" // calls package init func which adds sqlite3 as a driver for database/sql to use
+	_ "github.com/mattn/go-sqlite3"
+	// we don't use any exports of this package, but importing it here makes it run the package init func,
+	// which adds sqlite3 as a driver for database/sql to use
 )
 
-
+var db *sql.DB
 
 func main() {
 	// todo, follow auth tutorial
@@ -25,6 +31,14 @@ func main() {
 	// using base64 rand string as session token
 
 	load_config_or_exit()
+	pwhash.Iterations = config.Argon2_default_iterations
+	pwhash.Threads    = config.Argon2_default_threads
+	pwhash.Memory_KiB = config.Argon2_default_memory_KiB
+	pwhash.KeyLen     = config.Argon2_default_key_len
+	if !pwhash.ValidateSettings() { return }
+
+	// pwhash.ShowcaseHashSpeed()
+
 
 	// ListenAndServe expects string to start with ':'
 	if !strings.HasPrefix(config.Port, ":") {
@@ -32,40 +46,43 @@ func main() {
 	}
 
 	// Prints a console message about validity of sendgrid api key. Does not prevent server from starting up.
-	go verify_api_key()
+	// go verify_api_key()
 
-	db, err := sql.Open("sqlite3", "showcase.db")
+	var err error
+	db, err = sql.Open("sqlite3", "showcase.sqlite")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	defer func () {
 		log.Print("Closing db...")
 		if err := db.Close(); err != nil {
 			log.Printf("Error closing db: %v", err)
-			return
+		} else {
+			log.Print("Successfully closed db.")
 		}
-		log.Print("Successfully closed db.")
 	} ()
 
+	// Don't use prepared statements for things that modify tables that may be removed.
+	// To prepare the statement, it checks if the table it modifies exists, if it doesn't the statment fails to be prepared.
+	statement, err := db.Exec(`
+CREATE TABLE "Users" (
+	"id"	INTEGER NOT NULL,
+	"username"	TEXT NOT NULL UNIQUE,
+	"password_hash"	TEXT NOT NULL,
+	PRIMARY KEY("id" AUTOINCREMENT)
+) STRICT
+`)
 
-	// Create table
-// 	statement, err := db.Prepare(`
-// CREATE TABLE IF NOT EXISTS books (
-// 	id INTEGER PRIMARY KEY,
-// 	isbn INTEGER,
-// 	author TEXT,
-// 	name TEXT NULL
-// ) STRICT
-// `)
+	_ = statement
+	if err != nil {
+		log.Println("exec failed:", err)
+	} else {
+		log.Println("executed alright...")
+	}
 
-// 	if err != nil {
-// 		log.Println("Error in creating table")
-// 	} else {
-// 		log.Println("Successfully created table books with strict stuff or whatever!")
-// 	}
-// 	statement.Exec()
-
+	// create_user("lmao", "kekpassword")
 
 
 
@@ -107,6 +124,22 @@ func main() {
 	}
 
 	log.Println("Server shut down gracefully.")
+}
+
+func create_user(name, password string) {
+	hash, err := pwhash.EncodePassword(password)
+	if err != nil { log.Println("ERR: failed to generate encoded hash:", err); return }
+
+	result, err := db.Exec("INSERT INTO Users VALUES( NULL, ?, ?)", name, hash)
+	if err != nil { log.Println("ERR: create user exec:", err); return }
+
+	id, err := result.LastInsertId()
+	if err != nil {
+	} else { log.Println("created user with id:", id) }
+}
+
+func login(name, password string) {
+
 }
 
 
@@ -154,14 +187,22 @@ func CustomPrint(req *http.Request) {
 
 func respond(rw http.ResponseWriter, code int, msg string) {
 	rw.WriteHeader(code);
-	_, _ = io.WriteString(rw, msg); // Gonna assume this doesn't fail.
+	_, err := io.WriteString(rw, msg); // Gonna assume this doesn't fail.
 	// Like wtf do you do if writing the response doesn't work? Send a response that it didn't work? Oh, wait...
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError);
+		log.Printf("Error writing string to ResponseWriter: %v", err)
+	}
 }
 
 func respond_fmt(rw http.ResponseWriter, code int, msg string, args ...any) {
 	rw.WriteHeader(code);
-	_, _ = fmt.Fprintf(rw, msg, args...); // Gonna assume this doesn't fail.
+	_, err := fmt.Fprintf(rw, msg, args...); // Gonna assume this doesn't fail.
 	// Like wtf do you do if writing the response doesn't work? Send a response that it didn't work? Oh, wait...
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError);
+		log.Printf("Error writing string to ResponseWriter: %v", err)
+	}
 }
 
 
@@ -179,7 +220,7 @@ func wait_until_interrupt() {
 		for { select { case <-stop:
 			spammed++
 			switch spammed {
-				case 1: log.Print("(o_o) We're still shutting down, please have patience")
+				case 1: log.Print("(o_o) We're still shutting down, please have patience.")
 				case 2: log.Print("(o_o) Still shutting down...")
 				case 3: log.Print("(ò_ó) I told you to have patience!")
 				case 4: log.Print("(ò_ó) Come on, man!")
@@ -192,7 +233,7 @@ func wait_until_interrupt() {
 				case 11: log.Print("(>_<) Okay, on the next one!")
 				case 12: log.Print("(OvO) Sike! Close one, hehe!")
 				case 13: log.Print("(>_O) The next one for sure.")
-				case 14: log.Print("(>w<) Woops! I lied again")
+				case 14: log.Print("(>w<) Woops! I lied again!")
 				case 15: log.Print("(o_o) You know, I'd really prefer if you didn't try to shut me down.")
 				case 16: log.Print("(x_x) You're killing me.")
 				case 17: log.Print("(-_-) Literally.")
