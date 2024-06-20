@@ -1,4 +1,4 @@
-import { new_template } from "./util.js"
+import { new_template } from "./util.js";
 
 const make_body = new_template(`
 <slot></slot>

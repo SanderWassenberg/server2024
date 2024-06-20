@@ -1,4 +1,4 @@
-import { new_template, pick_random, random_in_range, random_int_in_range } from "./util.js"
+import { new_template, pick_random, random_in_range, random_int_in_range } from "./util.js";
 
 const make_body = new_template(`
 <canvas width="300" height="100"></canvas>

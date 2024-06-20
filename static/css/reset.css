@@ -141,6 +141,10 @@
 	margin: 0;
 }
 
+[hidden] {
+  display: none !important !important;
+}
+
 :where(p, blockquote, pre,
 a, abbr, acronym, address, big, cite, code,
 del, dfn, em, img, ins, kbd, q, s, samp,

@@ -10,33 +10,33 @@ section {
 	line-height: 1.5em;
 }
 
-:is(h1,h2,h3,h4,h5,h6) + * {
-	margin-top: .5em;
+h1,h2,h3,h4,h5,h6 {
+	margin-bottom: 10px;
 }
 
-button, input[type=submit] {
+button, input[type="submit"] {
 	border: 5px solid black;
 	background: white;
 	padding: 10px;
 	font-size: inherit;
 }
-:is(button, input[type=submit]):hover:not([disabled]) {
+:is(button, input[type="submit"]):hover:not([disabled]) {
 	cursor: pointer;
 	background: lemonchiffon;
 }
 
-:is(button, input[type=submit])[disabled] {
+:is(button, input[type="submit"])[disabled] {
 	background: #838288;
 	border-color: #55555f;
 	color: #6d6d6d;
 }
 
-input[type=text], input[type=email], input[type=password], textarea {
+input[type="text"], input[type="email"], input[type="password"], textarea {
 	border: 5px solid black;
 	padding: 5px;
 	font-size: inherit;
 }
-:is(input[type=text], input[type=email], input[type=password], textarea)[disabled] {
+:is(input[type="text"], input[type="email"], input[type="password"], textarea)[disabled] {
 	background: #8e8d91;
 	color: #6d6d6d;
 	border-color: #55555f;
@@ -137,6 +137,46 @@ input[type=text], input[type=email], input[type=password], textarea {
 
 	animation-duration: 400ms;
 	animation-direction: reverse;
+}
+
+.search-table {
+	border-collapse: collapse;
+
+	table-layout: fixed; /* will make all cols take up equal space, but requires explicit width on the table. set width of the first row's cells to change the col width */
+	width: 100%;
+}
+.search-table th {
+	border-bottom: var(--default-border-width) solid var(--default-border-color);
+}
+.search-table td {
+	/* TEMP  border: 1px solid red; */
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+.search-table :is(td, th):first-child {
+	padding-left: 20px;
+}
+.search-table :is(td, th):last-child {
+	padding-right: 20px;
+}
+
+
+.search-table :is(.ban, .chat) {
+	font-size: 30px;
+}
+.search-table th:is(.ban, .chat) {
+	width: min-content; /* sets the col width */
+	visibility: hidden; /* we use the content to determine the width, but we don't actually want to render it here */
+}
+
+/* set html data-role as admin to reveal this column */
+:root:not([data-role=admin]) .search-table .ban {
+	display: none;
+}
+.search-table .ban {
+	color: red;
+	padding-right: 5px;
 }
 
 .wiggle {

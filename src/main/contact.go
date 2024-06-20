@@ -28,14 +28,14 @@ type ContactData struct {
 }
 
 
-func contact_func(rw http.ResponseWriter, req *http.Request) {
+func contact_handler(rw http.ResponseWriter, req *http.Request) {
 
 	var cd ContactData
 	if err := json.NewDecoder(req.Body).Decode(&cd); err != nil {
 		errstr := err.Error()
 		log.Printf("Error: %v\n", errstr)
-		respond(rw, http.StatusBadRequest, errstr);
-		return;
+		respond(rw, http.StatusBadRequest, errstr)
+		return
 	}
 
 	if cd.Subject == "asd" {

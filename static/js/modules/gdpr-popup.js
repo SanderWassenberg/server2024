@@ -1,15 +1,16 @@
-import { new_template, hide } from "./util.js"
+import { new_template, hide } from "./util.js";
+import { } from "./popup-container.js"; // for import order, and so we dont have to import this script in html
 
 const key = 'gdpr-consent';
 
 export let consent = localStorage.getItem(key);
 
 const make_body = new_template(`
-<p>Hee hoi, wij willen graag al jouw cookies opeten, vind je dat erg? Alsje alsje alsjeblieeeeft? Om nom nom nom, cookies!</p>
+<p>Deze site gebruikt cookies voor functionaliteiten zoals inloggen. Accepteer je de cookies? </p>
 <div class="flex-row-center" style="flex-wrap: wrap; gap: 20px; padding-top: 20px;">
 	<div class="flex-row-center" style="flex-wrap: wrap; gap: 20px; align-items: center;">
 		<button data-choice="yes">Ja, eet mijn cookies a.u.b.</button>
-		<button data-choice="no">Nee, blijf van mijn cookies af!</button>
+		<button data-choice="necessary">Alleen functionele cookies.</button>
 		<button data-choice="later">Boeie, vraag later.</button>
 	</div>
 	<img src="/img/cookie.png" style="max-width: fit-content; max-height: fit-content;">
@@ -27,6 +28,9 @@ const make_body = new_template(`
 </style>
 `)
 
+function cookies_allowed() {
+	return consent === "yes" || consent === "necessary";
+}
 
 export class GDPRPopup extends HTMLElement {
 	static { customElements.define("gdpr-popup", GDPRPopup); }
@@ -37,13 +41,16 @@ export class GDPRPopup extends HTMLElement {
 		this.attachShadow({mode: 'open'});
 		this.shadowRoot.append(make_body());
 
-		const should_hide = consent === "yes" || consent === "no";
+		const should_hide = cookies_allowed();
 		hide(this, should_hide)
 
 		const handler = e => {
 			const choice = e.target.dataset["choice"];
-			localStorage.setItem(key, choice)
+			localStorage.setItem(key, choice);
 			consent = choice;
+			if (cookies_allowed()) {
+				document.cookie = `gdpr-consent=${choice}; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+			}
 			hide(this, true);
 		}
 

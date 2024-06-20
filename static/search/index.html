@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/css/reset.css">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="/fontawesome/css/solid.min.css">
+<script type="module" src="/js/modules/gdpr-popup.js"></script>
+<script type="module" src="/js/modules/search.js"></script>
+<title>Search</title>
+</head>
+
+<body class="flex-row-center">
+	<div class="make-it-responsive-bordered flex-col">
+		<div class="flex-col" style="padding: 20px; gap: 20px;">
+			<a href="/" class="icon-button" style="align-self: start;"><i class="fa-solid fa-house"></i></a>
+
+			<h1 style="margin-bottom: 0;">Search</h1>
+
+			<form id="interest_form" method="dialog">
+
+				<label for="your_interest">Your interest (so people can find you)</label>
+				<div class="flex-row" style="gap: 20px;">
+					<input required type="text" id="your_interest" name="your_interest" style="width: 100%; box-sizing: border-box;">
+					<button id="update_interest_btn" type="submit" style="padding-top: 0; padding-bottom: 0;">Save</button>
+				</div>
+			</form>
+
+			<form id="search_form" method="dialog">
+
+				<label for="search">Search</label>
+				<div class="flex-row" style="gap: 20px;">
+					<input required type="text" id="search" name="search" style="width: 100%; box-sizing: border-box;">
+					<button id="search_btn" type="submit" style="padding-top: 0; padding-bottom: 0;">Search</button>
+				</div>
+			</form>
+		</div>
+
+		<table class="search-table">
+			<thead>
+				<tr>
+					<th>Chatter</th>
+					<th>Interest</th>
+					<th class="ban"><i class="fa-solid fa-ban"></i></th>
+					<th class="chat"><i class="fa-solid fa-comment"></i></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>pietje</td>
+					<td>patat</td>
+					<td class="ban"><i class="fa-solid fa-ban"></i></td>
+					<td class="chat"><a href="/chat/?who=pietje" ><i class="fa-solid fa-comment"></i></a></td>
+				</tr>
+				<tr>
+					<td>pietje</td>
+					<td>patat</td>
+					<td class="ban"><i class="fa-solid fa-ban"></i></td>
+					<td class="chat"><a href="/chat/?who=pietje" ><i class="fa-solid fa-comment"></i></a></td>
+				</tr>
+				<tr>
+					<td>pietje</td>
+					<td>iiiiiiiiiiiiiiiiiiiaavwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww</td>
+					<td class="ban"><i class="fa-solid fa-ban"></i></td>
+					<td class="chat"><a href="/chat/?who=pietje" ><i class="fa-solid fa-comment"></i></a></td>
+				</tr>
+				<tr>
+					<td>uuuuuuuuuuuuuwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww</td>
+					<td>patat</td>
+					<td class="ban"><i class="fa-solid fa-ban"></i></td>
+					<td class="chat"><a href="/chat/?who=pietje" ><i class="fa-solid fa-comment"></i></a></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<popup-container>
+		<gdpr-popup></gdpr-popup>
+	</popup-container>
+</body>
+</html>

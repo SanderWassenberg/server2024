@@ -15,15 +15,7 @@ import (
 	"time"
 
 	"src/pwhash"
-
-
-	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
-	// we don't use any exports of this package, but importing it here makes it run the package init func,
-	// which adds sqlite3 as a driver for database/sql to use
 )
-
-var db *sql.DB
 
 func main() {
 	// todo, follow auth tutorial
@@ -31,6 +23,7 @@ func main() {
 	// using base64 rand string as session token
 
 	load_config_or_exit()
+
 	pwhash.Iterations = config.Argon2_default_iterations
 	pwhash.Threads    = config.Argon2_default_threads
 	pwhash.Memory_KiB = config.Argon2_default_memory_KiB
@@ -38,7 +31,6 @@ func main() {
 	if !pwhash.ValidateSettings() { return }
 
 	// pwhash.ShowcaseHashSpeed()
-
 
 	// ListenAndServe expects string to start with ':'
 	if !strings.HasPrefix(config.Port, ":") {
@@ -48,42 +40,12 @@ func main() {
 	// Prints a console message about validity of sendgrid api key. Does not prevent server from starting up.
 	// go verify_api_key()
 
-	var err error
-	db, err = sql.Open("sqlite3", "showcase.sqlite")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 
-	defer func () {
-		log.Print("Closing db...")
-		if err := db.Close(); err != nil {
-			log.Printf("Error closing db: %v", err)
-		} else {
-			log.Print("Successfully closed db.")
-		}
-	} ()
+	init_db()
+	defer deinit_db()
 
-	// Don't use prepared statements for things that modify tables that may be removed.
-	// To prepare the statement, it checks if the table it modifies exists, if it doesn't the statment fails to be prepared.
-	statement, err := db.Exec(`
-CREATE TABLE "Users" (
-	"id"	INTEGER NOT NULL,
-	"username"	TEXT NOT NULL UNIQUE,
-	"password_hash"	TEXT NOT NULL,
-	PRIMARY KEY("id" AUTOINCREMENT)
-) STRICT
-`)
-
-	_ = statement
-	if err != nil {
-		log.Println("exec failed:", err)
-	} else {
-		log.Println("executed alright...")
-	}
-
-	// create_user("lmao", "kekpassword")
-
+	_, _ = create_user("pietje", "puk", true)
+	_, _ = create_user("goofy", "gompie", true)
 
 
 
@@ -92,7 +54,8 @@ CREATE TABLE "Users" (
 	// How to use Handle string pattern: https://pkg.go.dev/net/http@go1.22.3#ServeMux
 	// NOTE: Most specific pattern takes precedence. Between "/" and "/api", the last is more specific, any url starting with "/api" will NOT go to the "/" handler.
 	http.Handle("GET /", &PrintWrapper{file_server})
-	http.HandleFunc("POST /api/contact", contact_func)
+	http.HandleFunc("POST /api/contact", contact_handler)
+	http.HandleFunc("POST /api/login", login_handler)
 	http.HandleFunc("POST /api/wait", func (rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(60*time.Second)
 		rw.WriteHeader(http.StatusOK)
@@ -104,7 +67,7 @@ CREATE TABLE "Users" (
 	log.Printf("Starting HTTP server at port %v", config.Port)
 
 	go func() {
-		// always returns error. ErrServerClosed on graceful close
+		// always returns error, specifically ErrServerClosed on graceful close
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			// unexpected error. port in use?
 			panic(err)
@@ -125,24 +88,6 @@ CREATE TABLE "Users" (
 
 	log.Println("Server shut down gracefully.")
 }
-
-func create_user(name, password string) {
-	hash, err := pwhash.EncodePassword(password)
-	if err != nil { log.Println("ERR: failed to generate encoded hash:", err); return }
-
-	result, err := db.Exec("INSERT INTO Users VALUES( NULL, ?, ?)", name, hash)
-	if err != nil { log.Println("ERR: create user exec:", err); return }
-
-	id, err := result.LastInsertId()
-	if err != nil {
-	} else { log.Println("created user with id:", id) }
-}
-
-func login(name, password string) {
-
-}
-
-
 
 type PrintWrapper struct { http.Handler }
 

@@ -13,6 +13,8 @@ const captcha = form.querySelector("my-captcha");
 captcha.onsubmit = () => submit.click();
 // form.submit() doesn't work, gives an exception titled NS_ERROR_FAILURE, no other information. Can't find online what exactly is happening. This works.
 
+form.addEventListener("submit", send_form);
+
 function start_loading() {
 	for (let i = 0; i < form.elements.length; i++) { form.elements[i].disabled = true; }
 	util.hide(spinner, false);
@@ -97,5 +99,4 @@ async function send_form(e) {
 }
 
 
-form.addEventListener("submit", send_form);
 
