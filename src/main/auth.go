@@ -81,7 +81,7 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 	valid_until := time.Now().Add(1*time.Hour)
 
 	if err := set_session(ld.Username, session_token, valid_until); err != nil {
-		log.Print(err)
+		log.Printf("login: %v", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -97,48 +97,91 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
-func get_role_handler(rw http.ResponseWriter, req *http.Request) {
-	ok, _, role := check_auth(rw, req)
-	if !ok { return }
-
-	respond(rw, http.StatusOK, role)
-}
-
 func signup_handler(rw http.ResponseWriter, req *http.Request) {
-	// TODO
-}
-
-func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, user string, role string) {
-	session_cookie, err := req.Cookie(SessionTokenCookieName)
-	if err != nil {
-		log.Print(err)
-		rw.WriteHeader(http.StatusUnauthorized)
-		return false, "", ""
+	var ld LoginData
+	if err := json.NewDecoder(req.Body).Decode(&ld); err != nil {
+		log.Printf("signup: %v", err)
+		rw.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	user, err = get_name_from_session(session_cookie.Value)
+	_, err := create_chatter(ld.Username, ld.Password, false)
 	if err != nil {
-		log.Print(err)
-		if err == ErrSessionExpired || err == ErrSessionNotFound {
+		if err == ErrUserAlreadyExists {
+			respond(rw, http.StatusBadRequest, err.Error())
+		} else {
+			rw.WriteHeader(http.StatusBadRequest)
+		}
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+}
+
+func user_info_handler(rw http.ResponseWriter, req *http.Request) {
+	ok, info := check_auth(rw, req)
+	if !ok { return }
+
+	info_json, err := json.Marshal(info)
+	if err != nil {
+		log.Printf("user_info: %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	respond(rw, http.StatusOK, string(info_json))
+}
+
+
+type UserInfo struct {
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Interest string `json:"interest"`
+}
+
+func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, info *UserInfo) {
+	session_cookie, err := req.Cookie(SessionTokenCookieName)
+	if err != nil {
+		log.Printf("check_auth: %v", err)
+		rw.WriteHeader(http.StatusUnauthorized)
+		return false, nil
+	}
+
+	var name string
+	name, err = get_name_from_session(session_cookie.Value)
+	if err != nil {
+		log.Printf("check_auth: %v", err)
+		if err == ErrSessionExpired {
 			respond(rw, http.StatusUnauthorized, err.Error())
 		} else {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}
-		return false, "", ""
+		return false, nil
 	}
 
-	isadmin, err := is_admin(user)
+	isadmin, err := is_admin(name)
 	if err != nil {
-		log.Print(err)
+		log.Printf("check_auth: %v", err)
 		rw.WriteHeader(http.StatusInternalServerError)
-		return false, "", ""
+		return false, nil
 	}
 
+	var role string
 	if isadmin {
 		role = "admin"
 	} else {
 		role = "chatter"
 	}
 
-	return true, user, role
+	interest, err := get_interest(name)
+	if err != nil {
+		log.Printf("check_auth: %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return false, nil
+	}
+
+	return true, &UserInfo{
+		Role:     role,
+		Name:     name,
+		Interest: interest,
+	}
 }

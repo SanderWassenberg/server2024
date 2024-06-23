@@ -19,10 +19,6 @@ import (
 
 func main() {
 
-	// todo, follow auth tutorial
-	// https://www.sohamkamani.com/golang/session-cookie-authentication/
-	// using base64 rand string as session token
-
 	load_config_or_exit()
 
 	pwhash.Iterations = config.Argon2_default_iterations
@@ -47,19 +43,22 @@ func main() {
 	defer deinit_db()
 
 	create_chatter("pietje", "puk",   false)
-	create_chatter("goofy", "gompie", false)
-	create_chatter("admin", "admin",  true)
-
-
+	create_chatter("aoeu",   "aoeu",  false)
+	create_chatter("asdf",   "asdf",  false)
+	create_chatter("admin",  "admin", true)
 
 	file_server := http.FileServer(http.Dir("./static")) // this uses paths relative to the cwd of the exe
 
 	// How to use Handle string pattern: https://pkg.go.dev/net/http@go1.22.3#ServeMux
 	// NOTE: Most specific pattern takes precedence. Between "/" and "/api", the last is more specific, any url starting with "/api" will NOT go to the "/" handler.
-	http.Handle("GET /", &PrintWrapper{file_server})
-	http.HandleFunc("POST /api/contact", contact_handler)
-	http.HandleFunc("POST /api/login", login_handler)
-	http.HandleFunc("POST /api/get_role", get_role_handler)
+	http.Handle("GET /", &PrintWrapper{Handler: file_server, UrlOnly: true})
+	http.Handle("POST /api/contact",      Wrap(contact_handler))
+	http.Handle("POST /api/login",        Wrap(login_handler))
+	http.Handle("POST /api/signup",       Wrap(signup_handler))
+	http.Handle("POST /api/user_info",    Wrap(user_info_handler))
+	http.Handle("POST /api/search",       Wrap(search_handler))
+	http.Handle("POST /api/set_interest", Wrap(set_interest_handler))
+	http.Handle("POST /api/ban",          Wrap(ban_handler))
 	http.HandleFunc("GET /api/chat", chat_handler) // js websocket uses GET to establish connection
 	http.HandleFunc("POST /api/wait", func (rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(60*time.Second)
@@ -94,11 +93,18 @@ func main() {
 	log.Println("Server shut down gracefully.")
 }
 
-type PrintWrapper struct { http.Handler }
+type PrintWrapper struct {
+	http.Handler
+	UrlOnly bool
+}
 
 func (self *PrintWrapper) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	CustomPrint(req)
+	self.CustomPrint(req)
 	self.Handler.ServeHTTP(rw, req)
+}
+
+func Wrap(f func(http.ResponseWriter, *http.Request)) http.Handler {
+	return &PrintWrapper{ Handler: http.HandlerFunc(f), UrlOnly: false }
 }
 
 // atomic increment https://stackoverflow.com/questions/13908129/are-increment-operators-in-go-atomic-on-x86
@@ -106,7 +112,12 @@ func (self *PrintWrapper) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // request_count.Add(1) // atomic add
 // fmt.Fprintf(w, "--- Request %v ---\n", request_count.Load())
 
-func CustomPrint(req *http.Request) {
+func (self *PrintWrapper) CustomPrint(req *http.Request) {
+	if self.UrlOnly {
+		log.Printf("%v %v\n", req.Method, req.URL)
+		return
+	}
+
     w := &strings.Builder{} // using string builder so that everything is printed with a single call to log.Print(), otherwise simultaneous requests get mixed together in the output.
 
 	fmt.Fprintf(w, "%v %v\n", req.Method, req.URL)
@@ -118,16 +129,6 @@ func CustomPrint(req *http.Request) {
 			for _, value := range headervalues { fmt.Fprintf(w, "\"%v\"", value) }
 			fmt.Fprint(w, "]\n")
 		}
-	}
-
-	if body, err := io.ReadAll(req.Body); err == nil {
-		if len(body) == 0 {
-			fmt.Fprint(w, "Body: <empty>\n")
-		} else {
-			fmt.Fprintf(w, "Body:\n`%v`\n", string(body))
-		}
-	} else {
-		fmt.Fprintf(w, "Body: (Error from io.ReadAll) %v\n", err)
 	}
 
     log.Println(w.String())

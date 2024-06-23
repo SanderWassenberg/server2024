@@ -6,10 +6,12 @@ export function hide(elem, state) {
 // String is sent as-is, FormData and object are json-serialized.
 // Returnvalue may be an exception, use `instanceof Error` to check.
 export async function api_post(path, data) {
+	if (typeof data !== "string")
+		data = JSON.stringify((data instanceof FormData) ? Object.fromEntries(data) : data);
 	const options = {
 	    method: 'POST',
 	    headers: { 'Content-Type': 'application/json' },
-	    body: JSON.stringify((data instanceof FormData) ? Object.fromEntries(data) : data),
+	    body: data,
 	    // you can also send a FormData without stringifying it but them it uses a weird scheme, not json
 	};
 	try { // fucking exceptions man

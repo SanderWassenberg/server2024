@@ -17,10 +17,9 @@
 		<div class="flex-col" style="padding: 20px; gap: 20px;">
 			<a href="/" class="icon-button" style="align-self: start;"><i class="fa-solid fa-house"></i></a>
 
-			<h1 style="margin-bottom: 0;">Search</h1>
+			<h1 style="margin-bottom: 0;">Search - <span id="username"></span></h1>
 
 			<form id="interest_form" method="dialog">
-
 				<label for="your_interest">Your interest (so people can find you)</label>
 				<div class="flex-row" style="gap: 20px;">
 					<input required type="text" id="your_interest" name="your_interest" style="width: 100%; box-sizing: border-box;">
@@ -38,6 +37,8 @@
 			</form>
 		</div>
 
+		<p hidden id="notif" style="align-self: center; color: red;"></p>
+
 		<table class="search-table">
 			<thead>
 				<tr>
@@ -49,26 +50,8 @@
 			</thead>
 			<tbody>
 				<tr>
-					<td>pietje</td>
-					<td>patat</td>
-					<td class="ban"><i class="fa-solid fa-ban"></i></td>
-					<td class="chat"><a href="/chat/?with=pietje" ><i class="fa-solid fa-comment"></i></a></td>
-				</tr>
-				<tr>
-					<td>pietje</td>
-					<td>patat</td>
-					<td class="ban"><i class="fa-solid fa-ban"></i></td>
-					<td class="chat"><a href="/chat/?with=pietje" ><i class="fa-solid fa-comment"></i></a></td>
-				</tr>
-				<tr>
-					<td>pietje</td>
-					<td>iiiiiiiiiiiiiiiiiiiaavwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww</td>
-					<td class="ban"><i class="fa-solid fa-ban"></i></td>
-					<td class="chat"><a href="/chat/?with=pietje" ><i class="fa-solid fa-comment"></i></a></td>
-				</tr>
-				<tr>
-					<td>uuuuuuuuuuuuuwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww</td>
-					<td>patat</td>
+					<td data-field="username">pietje</td>
+					<td data-field="interest">patat</td>
 					<td class="ban"><i class="fa-solid fa-ban"></i></td>
 					<td class="chat"><a href="/chat/?with=pietje" ><i class="fa-solid fa-comment"></i></a></td>
 				</tr>

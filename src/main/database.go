@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"src/pwhash"
@@ -38,7 +39,12 @@ CREATE TABLE "Users" (
 	"Admin"					INTEGER NOT NULL DEFAULT 0,
 	PRIMARY KEY("Id" AUTOINCREMENT)
 );
-`) // I'd li
+`)
+// NOTE: this cannot be a strict table because then reading dates becomes more of a hassle.
+// datetime isn't actually a datatype (it's actually converts to TEXT), strict tables don't allow it.
+// however, the sqlite driver only allows scanning a date if the table has DATETIME as the type.
+// the alternative is to have the field be TEXT and always parse the strings manually after scanning them as strings
+// So you either have nice scanning and no strictness, or strictness but annoying scanning.
 		_ = result
 		if err != nil {
 			log.Println("Failed to create Users table:", err)
@@ -66,7 +72,9 @@ CREATE TABLE "Messages" (
 	}
 
 	{
-		result, err := db.Exec(`CREATE UNIQUE INDEX "idx_Username" ON "Users" ("Username")`)
+		result, err := db.Exec(`
+CREATE UNIQUE INDEX "idx_Username" ON "Users" ("Username");
+`)
 		_ = result
 		if err != nil {
 			log.Println("Failed to create Username index:", err)
@@ -111,35 +119,15 @@ func create_chatter(name, password string, admin bool) (int64, error) {
 }
 
 func check_login(name, password string) bool {
-	rows, err := db.Query("SELECT PasswordHash FROM Users WHERE Username = ?", name)
-	if err != nil { log.Print(err); return false }
-	defer rows.Close()
-
 	var hash string
-	rows.Next()
-	if err := rows.Scan(&hash); err != nil { log.Print(err); return false }
+	err := db.QueryRow("SELECT PasswordHash FROM Users WHERE Username = ?", name).Scan(&hash)
+	if err != nil { log.Printf("check_login: %v", err); return false }
 
 	return pwhash.VerifyPassword(password, hash)
 }
 
-
-// type Session struct {
-// 	Token          string
-// 	ExpirationDate string
-// }
-
-// func get_session(name string) (session Session, err error) {
-// 	rows, err := db.Query("SELECT SessionToken, SessionExpirationDate FROM Users WHERE Username = ?", name)
-// 	if err != nil { return session, err }
-// 	defer rows.Close()
-
-// 	rows.Next()
-// 	err = rows.Scan(&session.Token, &session.ExpirationDate)
-// 	return session, err
-// }
-
 func set_session(name, token string, exp time.Time) error {
-	_, err := db.Exec("UPDATE Users SET SessionToken = ?, SessionExpirationDate = ? WHERE Username = ?;", token, exp.Format(time.RFC3339), name)
+	_, err := db.Exec("UPDATE Users SET SessionToken = ?, SessionExpirationDate = ? WHERE Username = ?;", token, exp, name)
 	return err
 }
 func set_interest(name, interest string) error {
@@ -150,36 +138,71 @@ func set_banned(name string, banned bool) error {
 	_, err := db.Exec("UPDATE Users SET Banned = ? WHERE Username = ?;", banned, name)
 	return err
 }
-func is_admin(name string) (isadmin bool, err error) {
-	rows, err := db.Query("SELECT Admin FROM Users WHERE Username = ?", name)
-	if err != nil { return false, err }
-	defer rows.Close()
 
-	rows.Next()
-	err = rows.Scan(&isadmin)
-	return isadmin, err
+func is_admin(name string) (isadmin bool, err error) {
+	err = db.QueryRow("SELECT Admin FROM Users WHERE Username = ?", name).Scan(&isadmin)
+	return
 }
 
-var ErrSessionExpired  = errors.New("session expired")
-var ErrSessionNotFound = errors.New("session not found")
+var ErrSessionExpired = errors.New("session expired")
 
 func get_name_from_session(session_token string) (name string, err error) {
-	rows, err := db.Query("SELECT Username, SessionExpirationDate FROM Users WHERE SessionToken = ?", session_token)
-	if err != nil { return "", err }
-	defer rows.Close()
-
 	var exp time.Time
-
-	if !rows.Next() {
-		return "", ErrSessionNotFound
-	}
-	err = rows.Scan(&name, &exp) // if this isn't able to scan the date then ensure the table column has type DATETIME (doesn't work on strict tables)
-								 // and all fields are filled in with proper dates (not null and proper default values)
-	if err != nil { return "", err }
+	err = db.QueryRow("SELECT Username, SessionExpirationDate FROM Users WHERE SessionToken = ?", session_token).Scan(&name, &exp)
+	if err != nil { return }
 
 	if time.Now().After(exp) {
 		err = ErrSessionExpired
 	}
 
-	return name, err
+	return
+}
+
+func get_interest(name string) (interest string, err error) {
+	err = db.QueryRow("SELECT Interest FROM Users WHERE Username = ?", name).Scan(&interest)
+	return
+}
+
+type SearchResultRow struct {
+	Name     string `json:"name"`
+	Interest string `json:"interest"`
+}
+func search_by_interest(match, name string, limit int) ([]SearchResultRow, error) {
+	// yes this is slow, idgaf, it's a school project, it can suck my ass
+	match = strings.ReplaceAll(match, `\`, `\\`)
+	match = strings.ReplaceAll(match, `%`, `\%`)
+	match = strings.ReplaceAll(match, `_`, `\_`)
+	match = "%" + match + "%"
+
+	rows, err := db.Query(`
+SELECT Username, Interest
+FROM Users
+WHERE Banned != TRUE
+	AND Interest LIKE ? ESCAPE '\'
+	AND Username != ?
+ORDER BY Username ASC
+LIMIT ?;
+`, match, name, limit)
+	if err != nil {
+		log.Printf("search_by_interest: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]SearchResultRow, 0, 10)
+
+	for rows.Next() {
+		var name, interest string
+		err := rows.Scan(&name, &interest)
+		if err != nil {
+			log.Printf("search_by_interest row scan error: %v", err)
+			return nil, err
+		}
+		results = append(results, SearchResultRow{
+			Name:     name,
+			Interest: interest,
+		})
+	}
+
+	return results, nil
 }
