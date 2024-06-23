@@ -20,6 +20,7 @@ import (
 	// "src/pwhash"
 )
 
+const SessionTokenCookieName = "session_token"
 
 
 // base64 converts every 6 bits to a character.
@@ -57,6 +58,11 @@ type LoginData struct {
 	Password string `json:"password"`
 }
 
+// type LoginResponse struct {
+// 	SessionToken string `json:"sessionToken"`
+// 	Role string `json:"role"`
+// }
+
 
 func login_handler(rw http.ResponseWriter, req *http.Request) {
 	var ld LoginData
@@ -71,21 +77,68 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tok := generate_session_token()
+	session_token := generate_session_token()
 	valid_until := time.Now().Add(1*time.Hour)
 
-	if err := set_session(ld.Username, tok, valid_until); err != nil {
+	if err := set_session(ld.Username, session_token, valid_until); err != nil {
 		log.Print(err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	// respond(rw, http.StatusOK, json.Marshall(response))
 
-	respond(rw, http.StatusOK, tok)
+	http.SetCookie(rw, &http.Cookie{
+		Name: SessionTokenCookieName,
+		Value: session_token,
+		Expires: valid_until,
+	})
 
-	// TODO: use set-cookie for this
+	rw.WriteHeader(http.StatusOK)
+}
+
+func get_role_handler(rw http.ResponseWriter, req *http.Request) {
+	ok, _, role := check_auth(rw, req)
+	if !ok { return }
+
+	respond(rw, http.StatusOK, role)
 }
 
 func signup_handler(rw http.ResponseWriter, req *http.Request) {
+	// TODO
+}
 
+func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, user string, role string) {
+	session_cookie, err := req.Cookie(SessionTokenCookieName)
+	if err != nil {
+		log.Print(err)
+		rw.WriteHeader(http.StatusUnauthorized)
+		return false, "", ""
+	}
+
+	user, err = get_name_from_session(session_cookie.Value)
+	if err != nil {
+		log.Print(err)
+		if err == ErrSessionExpired || err == ErrSessionNotFound {
+			respond(rw, http.StatusUnauthorized, err.Error())
+		} else {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}
+		return false, "", ""
+	}
+
+	isadmin, err := is_admin(user)
+	if err != nil {
+		log.Print(err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return false, "", ""
+	}
+
+	if isadmin {
+		role = "admin"
+	} else {
+		role = "chatter"
+	}
+
+	return true, user, role
 }

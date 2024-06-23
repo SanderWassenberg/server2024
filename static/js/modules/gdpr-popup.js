@@ -49,7 +49,7 @@ export class GDPRPopup extends HTMLElement {
 			localStorage.setItem(key, choice);
 			consent = choice;
 			if (cookies_allowed()) {
-				document.cookie = `gdpr-consent=${choice}; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+				document.cookie = `gdpr-consent=${choice}; path=/; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
 			}
 			hide(this, true);
 		}

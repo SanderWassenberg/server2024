@@ -154,6 +154,13 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 	overflow: hidden;
 }
 
+.p20 {
+	padding: 20px;
+}
+.p5 {
+	padding: 5px;
+}
+
 .search-table :is(td, th):first-child {
 	padding-left: 20px;
 }
@@ -178,6 +185,26 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 	color: red;
 	padding-right: 5px;
 }
+
+
+.msg {
+	border: var(--default-border-width) solid var(--default-border-color);
+	padding: 5px 10px;
+	max-width: 500px;
+	word-wrap: break-word;
+
+	background: white;
+	border-radius: 20px 20px 20px 0px;
+	align-self: start;
+}
+
+.msg.self {
+	background: lightgreen;
+	border-radius: 20px 20px 0px 20px;
+	align-self: end;
+}
+
+
 
 .wiggle {
 	animation: wiggle .15s 3 ease-in-out;

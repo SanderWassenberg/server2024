@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+
 	// todo, follow auth tutorial
 	// https://www.sohamkamani.com/golang/session-cookie-authentication/
 	// using base64 rand string as session token
@@ -41,11 +42,13 @@ func main() {
 	// go verify_api_key()
 
 
+
 	init_db()
 	defer deinit_db()
 
-	_, _ = create_user("pietje", "puk", true)
-	_, _ = create_user("goofy", "gompie", true)
+	create_chatter("pietje", "puk",   false)
+	create_chatter("goofy", "gompie", false)
+	create_chatter("admin", "admin",  true)
 
 
 
@@ -56,6 +59,8 @@ func main() {
 	http.Handle("GET /", &PrintWrapper{file_server})
 	http.HandleFunc("POST /api/contact", contact_handler)
 	http.HandleFunc("POST /api/login", login_handler)
+	http.HandleFunc("POST /api/get_role", get_role_handler)
+	http.HandleFunc("GET /api/chat", chat_handler) // js websocket uses GET to establish connection
 	http.HandleFunc("POST /api/wait", func (rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(60*time.Second)
 		rw.WriteHeader(http.StatusOK)

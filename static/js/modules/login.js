@@ -46,7 +46,7 @@ form.addEventListener("submit", async e => {
 		return;
 	}
 
-	document.cookie = `session_token=${session_token};`;
+	document.cookie = `session_token=${session_token}; path=/;`;
 
 	location.href = "/search"
 
