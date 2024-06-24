@@ -20,24 +20,24 @@
 			<h1 style="margin-bottom: 0;">Search - <span id="username"></span></h1>
 
 			<form id="interest_form" method="dialog">
-				<label for="your_interest">Your interest (so people can find you)</label>
+				<label for="interest_input">Your interest (so people can find you)</label>
 				<div class="flex-row" style="gap: 20px;">
-					<input required type="text" id="your_interest" name="your_interest" style="width: 100%; box-sizing: border-box;">
+					<input required type="text" id="interest_input" name="interest_input" style="width: 100%; box-sizing: border-box;">
 					<button id="update_interest_btn" type="submit" style="padding-top: 0; padding-bottom: 0;">Save</button>
 				</div>
 			</form>
 
 			<form id="search_form" method="dialog">
 
-				<label for="search">Search</label>
+				<label for="search_input">Search</label>
 				<div class="flex-row" style="gap: 20px;">
-					<input type="text" id="search" name="search" style="width: 100%; box-sizing: border-box;">
+					<input type="text" id="search_input" name="search_input" style="width: 100%; box-sizing: border-box;">
 					<button id="search_btn" type="submit" style="padding-top: 0; padding-bottom: 0;">Search</button>
 				</div>
 			</form>
 		</div>
 
-		<p hidden id="notif" style="align-self: center; color: red;"></p>
+		<p id="notif" style="align-self: center; color: red;"></p>
 
 		<table class="search-table">
 			<thead>
@@ -49,14 +49,17 @@
 				</tr>
 			</thead>
 			<tbody>
-				<tr>
+				<template><tr>
 					<td data-field="username">pietje</td>
 					<td data-field="interest">patat</td>
-					<td class="ban"><i class="fa-solid fa-ban"></i></td>
-					<td class="chat"><a href="/chat/?with=pietje" ><i class="fa-solid fa-comment"></i></a></td>
-				</tr>
+					<td class="ban"><i data-ban_user="" class="fa-solid fa-ban"></i></td>
+					<td class="chat"><a href="/chat/?with=" ><i class="fa-solid fa-comment"></i></a></td>
+				</tr></template>
 			</tbody>
 		</table>
+
+		<div hidden id="search_spinner" class="spinner" style="align-self: center; width: 35px; margin-top: 20px"></div>
+
 	</div>
 
 	<popup-container>

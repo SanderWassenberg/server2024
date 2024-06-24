@@ -181,9 +181,15 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 :root:not([data-role=admin]) .search-table .ban {
 	display: none;
 }
+.search-table .ban:hover {
+	background: red;
+	color: white;
+}
 .search-table .ban {
 	color: red;
 	padding-right: 5px;
+	padding-left: 5px;
+	cursor: pointer;
 }
 
 

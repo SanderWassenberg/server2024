@@ -11,7 +11,6 @@ import (
 	// https://pkg.go.dev/github.com/gorilla/websocket
 )
 
-
 var upgrader = ws.Upgrader{
 	// ReadBufferSize:  1024,
 	// WriteBufferSize: 1024,
@@ -95,7 +94,29 @@ func set_interest_handler(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 }
+
 func ban_handler(rw http.ResponseWriter, req *http.Request) {
-	// todo
+	ok, info := check_auth(rw, req)
+	if !ok { return }
+	if info.Role != "admin" {
+		rw.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	who, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("ban_handler: %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = set_banned(string(who), true)
+	if err != nil {
+		log.Printf("set_banned: %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
 }
 

@@ -164,7 +164,7 @@ func get_interest(name string) (interest string, err error) {
 }
 
 type SearchResultRow struct {
-	Name     string `json:"name"`
+	Username string `json:"username"`
 	Interest string `json:"interest"`
 }
 func search_by_interest(match, name string, limit int) ([]SearchResultRow, error) {
@@ -173,6 +173,8 @@ func search_by_interest(match, name string, limit int) ([]SearchResultRow, error
 	match = strings.ReplaceAll(match, `%`, `\%`)
 	match = strings.ReplaceAll(match, `_`, `\_`)
 	match = "%" + match + "%"
+
+	log.Printf("user %v searched for %v", name, match)
 
 	rows, err := db.Query(`
 SELECT Username, Interest
@@ -192,14 +194,14 @@ LIMIT ?;
 	results := make([]SearchResultRow, 0, 10)
 
 	for rows.Next() {
-		var name, interest string
-		err := rows.Scan(&name, &interest)
+		var username, interest string
+		err := rows.Scan(&username, &interest)
 		if err != nil {
 			log.Printf("search_by_interest row scan error: %v", err)
 			return nil, err
 		}
 		results = append(results, SearchResultRow{
-			Name:     name,
+			Username: username,
 			Interest: interest,
 		})
 	}
