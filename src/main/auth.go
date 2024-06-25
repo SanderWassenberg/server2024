@@ -150,7 +150,7 @@ func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, inf
 	name, err = get_name_from_session(session_cookie.Value)
 	if err != nil {
 		log.Printf("check_auth: %v", err)
-		if err == ErrSessionExpired {
+		if err == ErrSessionExpired || err == ErrSessionNotFound {
 			respond(rw, http.StatusUnauthorized, err.Error())
 		} else {
 			rw.WriteHeader(http.StatusInternalServerError)

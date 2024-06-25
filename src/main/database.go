@@ -144,12 +144,17 @@ func is_admin(name string) (isadmin bool, err error) {
 	return
 }
 
-var ErrSessionExpired = errors.New("session expired")
+var ErrSessionExpired  = errors.New("session expired")
+var ErrSessionNotFound = errors.New("session not found")
+
 
 func get_name_from_session(session_token string) (name string, err error) {
 	var exp time.Time
 	err = db.QueryRow("SELECT Username, SessionExpirationDate FROM Users WHERE SessionToken = ?", session_token).Scan(&name, &exp)
-	if err != nil { return }
+	if err != nil {
+		if err == sql.ErrNoRows { err = ErrSessionNotFound }
+		return
+	}
 
 	if time.Now().After(exp) {
 		err = ErrSessionExpired

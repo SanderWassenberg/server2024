@@ -7,8 +7,8 @@ export let consent = localStorage.getItem(key);
 
 const make_body = new_template(`
 <p>Deze site gebruikt cookies voor functionaliteiten zoals inloggen. Accepteer je de cookies? </p>
-<div class="flex-row-center" style="flex-wrap: wrap; gap: 20px; padding-top: 20px;">
-	<div class="flex-row-center" style="flex-wrap: wrap; gap: 20px; align-items: center;">
+<div class="flex-row-center g20" style="flex-wrap: wrap; padding-top: 20px;">
+	<div class="flex-row-center g20" style="flex-wrap: wrap; align-items: center;">
 		<button data-choice="yes">Ja, eet mijn cookies a.u.b.</button>
 		<button data-choice="necessary">Alleen functionele cookies.</button>
 		<button data-choice="later">Boeie, vraag later.</button>
