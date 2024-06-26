@@ -3,7 +3,7 @@
 
 :: Running this build file from a different cwd will work because %~dp0 holds the directory that this file is in, so /src is always found correctly.
 
-go build -C %~dp0src -o ../server2024.exe ./main
+go build -C %~dp0src -o ../run-server.exe ./main
 :: note: -C should always be the first flag, it doesn't work otherwise
 
 :: -C moves the cwd of the go compiler to the specified directory

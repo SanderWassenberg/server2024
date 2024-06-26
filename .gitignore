@@ -31,3 +31,5 @@ secret.*
 # sqlite db files
 *.db
 *.sqlite
+
+run-server*
