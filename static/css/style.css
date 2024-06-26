@@ -157,6 +157,9 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .search-table th {
 	border-bottom: var(--default-border-width) solid var(--default-border-color);
 }
+.search-table td:first-child {
+	border-right: 5px solid;
+}
 .search-table td {
 	/* TEMP  border: 1px solid red; */
 	text-overflow: ellipsis;

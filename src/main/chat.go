@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"sync"
 
+	"time"
+
 	ws "github.com/gorilla/websocket"
 	// https://pkg.go.dev/github.com/gorilla/websocket
 	// how to websocket: https://www.golinuxcloud.com/golang-websocket/
@@ -80,12 +82,12 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 
 	conn, err := upgrader.Upgrade(rw, req, nil)
 	if err != nil {
-		log.Println(err)
+		log.Println("websocket upgrade:", err)
 		return
 	}
 	go func () {
 		defer func () {
-			conn.WriteMessage(ws.CloseMessage, nil) // if this errors, no problemo
+			// conn.WriteMessage(ws.CloseMessage, nil) // if this errors, no problemo
 			conn.Close()
 		} ()
 
@@ -103,6 +105,11 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 			// reponse message
 			messageResponse := fmt.Sprintf("Your message is: %s.", messageContent)
 
+			if err := conn.WriteMessage(messageType, []byte(messageResponse)); err != nil {
+				log.Printf("chat_handler writemsg: %v", err)
+				return
+			}
+			time.Sleep(time.Second)
 			if err := conn.WriteMessage(messageType, []byte(messageResponse)); err != nil {
 				log.Printf("chat_handler writemsg: %v", err)
 				return

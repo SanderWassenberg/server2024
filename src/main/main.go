@@ -52,6 +52,7 @@ func main() {
 	// How to use Handle string pattern: https://pkg.go.dev/net/http@go1.22.3#ServeMux
 	// NOTE: Most specific pattern takes precedence. Between "/" and "/api", the last is more specific, any url starting with "/api" will NOT go to the "/" handler.
 	http.Handle("GET /", &PrintWrapper{Handler: file_server, UrlOnly: true})
+	http.Handle("GET /api/chat", &PrintWrapper{Handler: http.HandlerFunc(chat_handler), UrlOnly: true}) // js websocket uses GET to establish connection
 	http.Handle("POST /api/contact",      Wrap(contact_handler))
 	http.Handle("POST /api/login",        Wrap(login_handler))
 	http.Handle("POST /api/signup",       Wrap(signup_handler))
@@ -59,7 +60,6 @@ func main() {
 	http.Handle("POST /api/search",       Wrap(search_handler))
 	http.Handle("POST /api/set_interest", Wrap(set_interest_handler))
 	http.Handle("POST /api/ban",          Wrap(ban_handler))
-	http.HandleFunc("GET /api/chat", chat_handler) // js websocket uses GET to establish connection
 	http.HandleFunc("POST /api/wait", func (rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(60*time.Second)
 		rw.WriteHeader(http.StatusOK)

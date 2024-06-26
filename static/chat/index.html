@@ -19,16 +19,16 @@
 			<h1 id="username">Chatter</h1>
 		</div>
 
-		<div class="p20 flex-col g20" style="overflow: auto; flex-grow: 1;">
+		<div id="messages" class="p20 flex-col g20" style="overflow: auto; flex-grow: 1;">
 
-			<div class="msg">aoeu</div>
-			<div class="msg self">aoeu</div>
+			<template id="other_msg"><div class="msg"></div></template>
+			<template id="own_msg"><div class="msg self"></div></template>
 
 		</div>
 
-		<div class="flex-row g20 p20" style="border-top: 5px solid black;">
-			<textarea class="p20" style="border: 5px solid black; border-radius: 20px; flex-grow: 1; width: 0; resize: none;"></textarea>
-			<button style="font-size: 40px;"><i class="fa-solid fa-arrow-right"></i></button>
+		<div class="flex-row p20" style="border-top: 5px solid black;">
+			<textarea id="textbox" class="p20" style="border: 5px solid black; border-right: none; border-radius: 20px 0 0 20px; flex-grow: 1; width: 0; resize: none;"></textarea>
+			<button style="font-size: 40px; border-radius: 0 20px 20px 0;"><i class="fa-solid fa-arrow-right"></i></button>
 		</div>
 
 	</div>
