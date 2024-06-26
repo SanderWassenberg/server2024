@@ -51,8 +51,8 @@ func main() {
 
 	// How to use Handle string pattern: https://pkg.go.dev/net/http@go1.22.3#ServeMux
 	// NOTE: Most specific pattern takes precedence. Between "/" and "/api", the last is more specific, any url starting with "/api" will NOT go to the "/" handler.
-	http.Handle("GET /", &PrintWrapper{Handler: file_server, UrlOnly: true})
-	http.Handle("GET /api/chat", &PrintWrapper{Handler: http.HandlerFunc(chat_handler), UrlOnly: true}) // js websocket uses GET to establish connection
+	http.Handle("GET /", &PrintWrapper{Handler: file_server, Static: true})
+	http.Handle("GET /api/chat",          Wrap(chat_handler)) // js websocket uses GET to establish connection
 	http.Handle("POST /api/contact",      Wrap(contact_handler))
 	http.Handle("POST /api/login",        Wrap(login_handler))
 	http.Handle("POST /api/signup",       Wrap(signup_handler))
@@ -95,7 +95,7 @@ func main() {
 
 type PrintWrapper struct {
 	http.Handler
-	UrlOnly bool
+	Static bool
 }
 
 func (self *PrintWrapper) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -104,7 +104,7 @@ func (self *PrintWrapper) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 func Wrap(f func(http.ResponseWriter, *http.Request)) http.Handler {
-	return &PrintWrapper{ Handler: http.HandlerFunc(f), UrlOnly: false }
+	return &PrintWrapper{ Handler: http.HandlerFunc(f), Static: false }
 }
 
 // atomic increment https://stackoverflow.com/questions/13908129/are-increment-operators-in-go-atomic-on-x86
@@ -113,9 +113,18 @@ func Wrap(f func(http.ResponseWriter, *http.Request)) http.Handler {
 // fmt.Fprintf(w, "--- Request %v ---\n", request_count.Load())
 
 func (self *PrintWrapper) CustomPrint(req *http.Request) {
-	if self.UrlOnly {
-		log.Printf("%v %v\n", req.Method, req.URL)
-		return
+	if self.Static {
+		if !config.Log_Static_File_Requests { return }
+		if !config.Log_Static_File_Request_Headers {
+			log.Printf("%v %v\n", req.Method, req.URL)
+			return
+		}
+	} else {
+		if !config.Log_Api_Requests { return }
+		if !config.Log_Api_Request_Headers {
+			log.Printf("%v %v\n", req.Method, req.URL)
+			return
+		}
 	}
 
     w := &strings.Builder{} // using string builder so that everything is printed with a single call to log.Print(), otherwise simultaneous requests get mixed together in the output.

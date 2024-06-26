@@ -16,6 +16,11 @@ type Config struct {
 	Argon2_default_threads    uint8
 	Argon2_default_memory_KiB uint32
 	Argon2_default_key_len    uint32
+
+	Log_Static_File_Requests        bool
+	Log_Static_File_Request_Headers bool
+	Log_Api_Requests         bool
+	Log_Api_Request_Headers  bool
 }
 
 var config = Config{}
