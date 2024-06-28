@@ -18,6 +18,8 @@ import (
 var upgrader = ws.Upgrader{
 	// ReadBufferSize:  1024,
 	// WriteBufferSize: 1024,
+
+	// https://stackoverflow.com/questions/65034144/how-to-add-a-trusted-origin-to-gorilla-websockets-checkorigin
 	CheckOrigin: func(r *http.Request) bool {
 	    origin := r.Header.Get("Origin")
 	    return origin == "https://sandershowcase.hbo-ict.org"

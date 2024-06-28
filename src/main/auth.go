@@ -5,23 +5,23 @@ import (
 	crypto_rand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+
 	// "errors"
 	// "fmt"
 	// "io"
 	"log"
 	"net/http"
+
 	// "os"
 	// "os/signal"
 	// "strconv"
 	// "strings"
 	"time"
 	// "unicode/utf8"
-
 	// "src/pwhash"
 )
 
 const SessionTokenCookieName = "session_token"
-
 
 // base64 converts every 6 bits to a character.
 // That means you get a 3:4 ratio, where every 3 bytes turn into 4 characters
@@ -48,9 +48,9 @@ const SessionTokenCookieName = "session_token"
 // a uuid is 2^128, (16 bytes)
 func generate_session_token() string {
 	const n_bytes = 18
-    buf := make([]byte, n_bytes)
+	buf := make([]byte, n_bytes)
 	crypto_rand.Reader.Read(buf)
-    return base64.StdEncoding.EncodeToString(buf) // It's bad to put session tokens in URL, so don't use URLEncoding.
+	return base64.StdEncoding.EncodeToString(buf) // It's bad to put session tokens in URL, so don't use URLEncoding.
 }
 
 type LoginData struct {
@@ -62,7 +62,6 @@ type LoginData struct {
 // 	SessionToken string `json:"sessionToken"`
 // 	Role string `json:"role"`
 // }
-
 
 func login_handler(rw http.ResponseWriter, req *http.Request) {
 	var ld LoginData
@@ -78,7 +77,7 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	session_token := generate_session_token()
-	valid_until := time.Now().Add(1*time.Hour)
+	valid_until := time.Now().Add(1 * time.Hour)
 
 	if err := set_session(ld.Username, session_token, valid_until); err != nil {
 		log.Printf("login: %v", err)
@@ -89,8 +88,8 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 	// respond(rw, http.StatusOK, json.Marshall(response))
 
 	http.SetCookie(rw, &http.Cookie{
-		Name: SessionTokenCookieName,
-		Value: session_token,
+		Name:    SessionTokenCookieName,
+		Value:   session_token,
 		Expires: valid_until,
 	})
 
@@ -104,6 +103,9 @@ func signup_handler(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	// should probably not allow all strings as usernames,
+	// currently you can have usernames with spaces and special characters and shit and that's probably not good.
 
 	_, err := create_chatter(ld.Username, ld.Password, false)
 	if err != nil {
@@ -121,7 +123,9 @@ func signup_handler(rw http.ResponseWriter, req *http.Request) {
 
 func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 	ok, info := check_auth(rw, req)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	info_json, err := json.Marshal(info)
 	if err != nil {
@@ -131,7 +135,6 @@ func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 	}
 	respond(rw, http.StatusOK, string(info_json))
 }
-
 
 type UserInfo struct {
 	Name     string `json:"name"`
