@@ -76,7 +76,7 @@ func send_contact_email(cd *ContactData) (ok bool) {
 	from := SGmail.NewEmail("Showcase website", "sander.wassenberg@windesheim.nl")
 	to   := SGmail.NewEmail("Pietje Puk",       "sander.wassenberg@windesheim.nl")
 
-	htmlContent := fmt.Sprint(
+	htmlContent := fmt.Sprintf(
 `Hello, <b>Pietje Puk<b>!
 You have received a message from somebody on the Showcase website!
 <pre>%[1]v</pre>
@@ -137,6 +137,6 @@ func verify_api_key() {
 	if api_key_ok {
 		log.Print("API key works, mail sending functionality should work.")
 	} else {
-		log.Print("WARNING: API key doesn't work, mail sending functionality will not work. (Sedgrid responded with %v %v)", res.StatusCode, http.StatusText(res.StatusCode))
+		log.Printf("WARNING: API key doesn't work, mail sending functionality will not work. (Sedgrid responded with %v %v)", res.StatusCode, http.StatusText(res.StatusCode))
 	}
 }
