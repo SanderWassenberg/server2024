@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"strings"
 
 	// "time"
 
@@ -22,7 +23,7 @@ var upgrader = ws.Upgrader{
 	// https://stackoverflow.com/questions/65034144/how-to-add-a-trusted-origin-to-gorilla-websockets-checkorigin
 	CheckOrigin: func(r *http.Request) bool {
 	    origin := r.Header.Get("Origin")
-	    return origin == "https://sandershowcase.hbo-ict.org"
+	    return origin == "https://sandershowcase.hbo-ict.org" || strings.HasPrefix(origin, "http://localhost")
 	},
 }
 
