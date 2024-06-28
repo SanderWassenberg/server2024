@@ -21,7 +21,7 @@ var upgrader = ws.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 	    origin := r.Header.Get("Origin")
 	    return origin == "https://sandershowcase.hbo-ict.org"
-	}
+	},
 }
 
 type Chatrooms struct {
