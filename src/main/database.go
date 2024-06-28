@@ -168,6 +168,11 @@ func get_interest(name string) (interest string, err error) {
 	return
 }
 
+func get_id(name string) (id int, err error) {
+	err = db.QueryRow("SELECT Id FROM Users WHERE Username = ?", name).Scan(&id)
+	return
+}
+
 type SearchResultRow struct {
 	Username string `json:"username"`
 	Interest string `json:"interest"`
@@ -212,4 +217,9 @@ LIMIT ?;
 	}
 
 	return results, nil
+}
+
+func save_message(my_id, other_id int, text string) error {
+	log.Println(my_id, other_id, text)
+	return nil
 }

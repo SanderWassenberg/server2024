@@ -32,9 +32,8 @@ func contact_handler(rw http.ResponseWriter, req *http.Request) {
 
 	var cd ContactData
 	if err := json.NewDecoder(req.Body).Decode(&cd); err != nil {
-		errstr := err.Error()
-		log.Printf("Error: %v\n", errstr)
-		respond(rw, http.StatusBadRequest, errstr)
+		log.Println("Error:", err)
+		respond(rw, http.StatusBadRequest, "json decoder error")
 		return
 	}
 

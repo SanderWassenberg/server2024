@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	"time"
+	// "time"
 
 	ws "github.com/gorilla/websocket"
 	// https://pkg.go.dev/github.com/gorilla/websocket
@@ -22,7 +22,7 @@ var upgrader = ws.Upgrader{
 
 type Chatrooms struct {
 	Lock sync.Mutex // Lock when joining or leaving, that may remove or create a room
-	Rooms map[string]Chatroom // room id is "lowId-highId"
+	Rooms map[string]*Chatroom // room id is "lowId-highId"
 }
 
 type Chatroom struct {
@@ -31,8 +31,85 @@ type Chatroom struct {
 	Conn_2 *ws.Conn // highest id
 }
 
+var chatrooms = Chatrooms{
+	Rooms: make(map[string]*Chatroom),
+}
+
+func my_sort(a, b int) (lo int, hi int) {
+	if a < b {
+		lo = a; hi = b
+	} else {
+		lo = b; hi = a
+	}
+	return
+}
+func join(my_id, other_id int, conn *ws.Conn) (room *Chatroom) {
+	lo, hi := my_sort(my_id, other_id)
+	room_id := fmt.Sprintf("%v-%v", lo, hi)
+	room, ok := chatrooms.Rooms[room_id]
+	if !ok {
+		room = &Chatroom{}
+		chatrooms.Rooms[room_id] = room
+	}
+
+	// lowest id is for conn_1
+	if my_id < other_id {
+		room.Conn_1 = conn
+	} else {
+		room.Conn_2 = conn
+	}
+
+	return room
+}
+
+func leave(my_id, other_id int) {
+	lo, hi := my_sort(my_id, other_id)
+	room_id := fmt.Sprintf("%v-%v", lo, hi)
+	room, ok := chatrooms.Rooms[room_id]
+	if !ok {
+		log.Printf("room '%v' not present when it should be", room_id);
+		panic("yikes!")
+	}
+	remove_room := false
+	if my_id < other_id {
+		room.Conn_1 = nil
+		remove_room = room.Conn_2 == nil
+	} else {
+		room.Conn_2 = nil
+		remove_room = room.Conn_1 == nil
+	}
+
+	if remove_room {
+		chatrooms.Rooms[room_id] = nil
+	}
+}
+
+func send(room *Chatroom, my_id, other_id int, text string) {
+	err := save_message(my_id, other_id, text)
+	if err != nil {
+		log.Println("send():", err)
+	}
+
+	var send_conn *ws.Conn
+	if my_id < other_id {
+		send_conn = room.Conn_2
+	} else {
+		send_conn = room.Conn_1
+	}
+
+	if send_conn != nil {
+		// do send
+		if err := send_conn.WriteMessage(ws.TextMessage, []byte(text)); err != nil {
+			log.Printf("send() writemsg: %v", err)
+			return
+		}
+	}
+}
+
 /*
-join(my_id, other_id, conn):
+Dit is het gedoe met mutexes dat je moet doen als je het echt veilig wil maken, maar voor nu, boeie
+
+join():
 	create room id
 	lock rooms
 
@@ -49,7 +126,7 @@ join(my_id, other_id, conn):
 
 	unlock rooms
 
-leave(my_id, other_id):
+leave():
 	create room id
 	lock rooms
 	get room ptr using the id
@@ -80,11 +157,32 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 	_ = info // stfu
 
 
+	log.Println("this is the url:", req.URL)
+	log.Println("GET params were:", req.URL.Query())
+
+	// https://stackoverflow.com/questions/15407719/in-gos-http-package-how-do-i-get-the-query-string-on-a-post-request
+	other_username := req.URL.Query().Get("with")
+	other_id, err := get_id(other_username)
+	if err != nil {
+		log.Printf("could not get id of other chatter '%v': %v", other_username, err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	my_id, err := get_id(info.Name)
+	if err != nil {
+		log.Printf("could not get id of self '%v': %v", other_username, err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(rw, req, nil)
 	if err != nil {
 		log.Println("websocket upgrade:", err)
 		return
 	}
+
+	room := join(my_id, other_id, conn)
+
 	go func () {
 		defer func () {
 			// conn.WriteMessage(ws.CloseMessage, nil) // if this errors, no problemo
@@ -99,21 +197,12 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			// print out that message
-			log.Printf("received: %v", string(messageContent))
-
-			// reponse message
-			messageResponse := fmt.Sprintf("Your message is: %s.", messageContent)
-
-			if err := conn.WriteMessage(messageType, []byte(messageResponse)); err != nil {
-				log.Printf("chat_handler writemsg: %v", err)
+			if messageType == ws.CloseMessage {
+				leave(my_id, other_id)
 				return
 			}
-			time.Sleep(time.Second)
-			if err := conn.WriteMessage(messageType, []byte(messageResponse)); err != nil {
-				log.Printf("chat_handler writemsg: %v", err)
-				return
-			}
+
+			send(room, my_id, other_id, string(messageContent))
 		}
 	} ()
 	return

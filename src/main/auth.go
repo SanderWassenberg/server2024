@@ -100,13 +100,14 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 func signup_handler(rw http.ResponseWriter, req *http.Request) {
 	var ld LoginData
 	if err := json.NewDecoder(req.Body).Decode(&ld); err != nil {
-		log.Printf("signup: %v", err)
+		log.Println("signup_handler:", err)
 		rw.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	_, err := create_chatter(ld.Username, ld.Password, false)
 	if err != nil {
+		log.Println("signup handler:", err)
 		if err == ErrUserAlreadyExists {
 			respond(rw, http.StatusBadRequest, err.Error())
 		} else {
@@ -124,7 +125,7 @@ func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 
 	info_json, err := json.Marshal(info)
 	if err != nil {
-		log.Printf("user_info: %v", err)
+		log.Println("user_info:", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}

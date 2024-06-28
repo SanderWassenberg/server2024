@@ -21,7 +21,7 @@ textbox.addEventListener("keydown", e => {
 	send_msg(msg);
 });
 
-const socket = new WebSocket(`${location.protocol.replace("http", "ws")}//${location.host}/api/chat`);
+const socket = new WebSocket(`${location.protocol.replace("http", "ws")}//${location.host}/api/chat${location.search}`);
 
 // Listen for messages
 socket.addEventListener("message", (e) => { add_msg(e.data, false); });
