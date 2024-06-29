@@ -42,10 +42,19 @@ func main() {
 	init_db()
 	defer deinit_db()
 
-	create_chatter("pietje", "puk",   false)
-	create_chatter("aoeu",   "aoeu",  false)
-	create_chatter("asdf",   "asdf",  false)
-	create_chatter("admin",  "admin", true)
+	_, _         = create_chatter("pietje", "puk",   false)
+	_, _         = create_chatter("aoeu",   "aoeu",  false)
+	asdf,  err1 := create_chatter("asdf",   "asdf",  false)
+	admin, err2 := create_chatter("admin",  "admin", true)
+
+	if err1 == nil && err2 == nil { // err means they already existed, only add chat if they don't yet exist.
+		save_message(asdf, admin, "hoi admin!")
+		save_message(admin, asdf, "hoi asdf!")
+	}
+	set_interest("pietje", "games")
+	set_interest("aoeu", "dvorak")
+	set_interest("asdf", "qwerty")
+	set_interest("admin", "games")
 
 	file_server := http.FileServer(http.Dir("./static")) // this uses paths relative to the cwd of the exe
 
@@ -53,6 +62,7 @@ func main() {
 	// NOTE: Most specific pattern takes precedence. Between "/" and "/api", the last is more specific, any url starting with "/api" will NOT go to the "/" handler.
 	http.Handle("GET /", &PrintWrapper{Handler: file_server, Static: true})
 	http.Handle("GET /api/chat",          Wrap(chat_handler)) // js websocket uses GET to establish connection
+	http.Handle("POST /api/chat_history", Wrap(chat_history_handler)) // js websocket uses GET to establish connection
 	http.Handle("POST /api/contact",      Wrap(contact_handler))
 	http.Handle("POST /api/login",        Wrap(login_handler))
 	http.Handle("POST /api/signup",       Wrap(signup_handler))

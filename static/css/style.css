@@ -157,13 +157,17 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .search-table th {
 	border-bottom: var(--default-border-width) solid var(--default-border-color);
 }
-.search-table td:first-child {
-	border-right: 5px solid;
+.search-table td:nth-child(2) {
+	border-left: 5px solid;
+	padding-left: 10px;
 }
 .search-table td {
 	/* TEMP  border: 1px solid red; */
 	text-overflow: ellipsis;
 	overflow: hidden;
+}
+.search-table tr:nth-child(2n) {
+	background: #EEE;
 }
 
 .search-table :is(td, th):first-child {

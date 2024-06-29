@@ -55,11 +55,22 @@ CREATE TABLE "Users" (
 
 	{
 		result, err := db.Exec(`
+CREATE UNIQUE INDEX "idx_Username" ON "Users" ("Username");
+`)
+		_ = result
+		if err != nil {
+			log.Println("Failed to create Username index:", err)
+		} else {
+			log.Println("Created Username index.")
+		}
+	}
+
+	{
+		result, err := db.Exec(`
 CREATE TABLE "Messages" (
 	"Text"	TEXT	NOT NULL,
 	"To"	INTEGER NOT NULL,
 	"From"	INTEGER NOT NULL,
-	"Time"	TEXT	NOT NULL DEFAULT 'datetime("now", "subsec")',
 	FOREIGN KEY("To") REFERENCES "Users"("Id")
 ) STRICT;
 `)
@@ -71,24 +82,13 @@ CREATE TABLE "Messages" (
 		}
 	}
 
-	{
-		result, err := db.Exec(`
-CREATE UNIQUE INDEX "idx_Username" ON "Users" ("Username");
-`)
-		_ = result
-		if err != nil {
-			log.Println("Failed to create Username index:", err)
-		} else {
-			log.Println("Created Username index.")
-		}
-	}
 	// */
 }
 
 func deinit_db() {
 	log.Print("Closing db...")
 	if err := db.Close(); err != nil {
-		log.Printf("Error closing db: %v", err)
+		log.Println("Error closing db:", err)
 	} else {
 		log.Print("Successfully closed db.")
 	}
@@ -96,10 +96,10 @@ func deinit_db() {
 
 var ErrUserAlreadyExists = errors.New("user already exists")
 
-func create_chatter(name, password string, admin bool) (int64, error) {
-	{
+func create_chatter(name, password string, admin bool) (int, error) {
+	{ // check if exists, because generating a password hash is expensive.
 		exists := false
-		db.QueryRow("SELECT 1 FROM Users where Username = ?", name).Scan(&exists)
+		db.QueryRow(`SELECT 1 FROM "Users" where "Username" = ?`, name).Scan(&exists)
 		if exists { return 0, ErrUserAlreadyExists }
 	}
 
@@ -114,14 +114,17 @@ func create_chatter(name, password string, admin bool) (int64, error) {
 		return 0, err
 	} else {
 		if id != 0 { log.Println("created user with id:", id) }
-		return id, nil
+		return int(id), nil
 	}
 }
 
 func check_login(name, password string) bool {
 	var hash string
 	err := db.QueryRow("SELECT PasswordHash FROM Users WHERE Username = ?", name).Scan(&hash)
-	if err != nil { log.Printf("check_login: %v", err); return false }
+	if err != nil {
+		log.Println("check_login:", err)
+		return false
+	}
 
 	return pwhash.VerifyPassword(password, hash)
 }
@@ -139,37 +142,50 @@ func set_banned(name string, banned bool) error {
 	return err
 }
 
-func is_admin(name string) (isadmin bool, err error) {
-	err = db.QueryRow("SELECT Admin FROM Users WHERE Username = ?", name).Scan(&isadmin)
-	return
-}
+// func is_admin(name string) (isadmin bool, err error) {
+// 	err = db.QueryRow("SELECT Admin FROM Users WHERE Username = ?", name).Scan(&isadmin)
+// 	return
+// }
 
 var ErrSessionExpired  = errors.New("session expired")
 var ErrSessionNotFound = errors.New("session not found")
 
 
-func get_name_from_session(session_token string) (name string, err error) {
-	var exp time.Time
-	err = db.QueryRow("SELECT Username, SessionExpirationDate FROM Users WHERE SessionToken = ?", session_token).Scan(&name, &exp)
+func get_info_from_session(session_token string) (info *UserInfo, err error) {
+
+	var exp      time.Time
+	var is_admin bool
+	info = &UserInfo{}
+
+	err = db.QueryRow(
+		"SELECT SessionExpirationDate, Id, Username, Interest, Admin FROM Users WHERE SessionToken = ?",
+		session_token,
+	).Scan(&exp, &info.Id, &info.Name, &info.Interest, &is_admin)
 	if err != nil {
 		if err == sql.ErrNoRows { err = ErrSessionNotFound }
-		return
+		return nil, err
 	}
 
 	if time.Now().After(exp) {
-		err = ErrSessionExpired
+		return nil, ErrSessionExpired
 	}
 
-	return
+	if is_admin {
+		info.Role = "admin"
+	} else {
+		info.Role = "chatter"
+	}
+
+	return info, nil
 }
 
-func get_interest(name string) (interest string, err error) {
-	err = db.QueryRow("SELECT Interest FROM Users WHERE Username = ?", name).Scan(&interest)
-	return
-}
+// func get_interest(name string) (interest string, err error) {
+// 	err = db.QueryRow("SELECT Interest FROM Users WHERE Username = ?", name).Scan(&interest)
+// 	return
+// }
 
 func get_id(name string) (id int, err error) {
-	err = db.QueryRow("SELECT Id FROM Users WHERE Username = ?", name).Scan(&id)
+	err = db.QueryRow(`SELECT "Id" FROM "Users" WHERE "Username" = ?`, name).Scan(&id)
 	return
 }
 
@@ -196,7 +212,7 @@ ORDER BY Username ASC
 LIMIT ?;
 `, match, name, limit)
 	if err != nil {
-		log.Printf("search_by_interest: %v", err)
+		log.Println("search_by_interest:", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -207,7 +223,7 @@ LIMIT ?;
 		var username, interest string
 		err := rows.Scan(&username, &interest)
 		if err != nil {
-			log.Printf("search_by_interest row scan error: %v", err)
+			log.Println("search_by_interest row scan error:", err)
 			return nil, err
 		}
 		results = append(results, SearchResultRow{
@@ -220,6 +236,56 @@ LIMIT ?;
 }
 
 func save_message(my_id, other_id int, text string) error {
-	log.Println(my_id, other_id, text)
+	_, err := db.Exec( // not using quotes for the column "From" will confuse SQL because FROM is also a keyword.
+		`INSERT INTO Messages ("From", "To", "Text") VALUES (?, ?, ?)`,
+		my_id, other_id, text,
+	)
+	if err != nil {
+		log.Println("save_message:", err)
+		return err
+	}
+
 	return nil
+}
+
+type MessageHistory struct {
+	Message []string `json:"message"`
+	Side    string   `json:"side"`
+}
+
+func get_chat_history(id1, id2, limit int) (history *MessageHistory, err error) {
+	rows, err := db.Query(`
+SELECT "Text", ("From" = ?1) as "FromMe"
+FROM "Messages"
+WHERE ("From" = ?1 AND "To" = ?2) OR ("From" = ?2 AND "To" = ?1)
+ORDER BY ROWID ASC
+LIMIT ?3;
+`, id1, id2, limit)
+	if err != nil {
+		log.Println("get_chat_history:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	history = &MessageHistory{
+		Message: make([]string, 0, 100),
+	}
+	side := make([]byte, 0, 100)
+
+	for rows.Next() {
+		var msg string
+		var sender byte
+		err := rows.Scan(&msg, &sender)
+		if err != nil {
+			log.Println("get_chat_history row scan error:", err)
+			return nil, err
+		}
+		history.Message = append(history.Message, msg)
+
+		side = append(side, sender + '0')
+	}
+
+	history.Side = string(side)
+
+	return history, nil
 }

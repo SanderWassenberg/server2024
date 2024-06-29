@@ -50,6 +50,7 @@ func my_sort(a, b int) (lo int, hi int) {
 	}
 	return
 }
+
 func join(my_id, other_id int, conn *ws.Conn) (room *Chatroom) {
 	lo, hi := my_sort(my_id, other_id)
 	room_id := fmt.Sprintf("%v-%v", lo, hi)
@@ -161,23 +162,14 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 	ok, info := check_auth(rw, req)
 	if !ok { return }
 
-	_ = info // stfu
-
-
-	log.Println("this is the url:", req.URL)
-	log.Println("GET params were:", req.URL.Query())
+	// log.Println("this is the url:", req.URL)
+	// log.Println("GET params were:", req.URL.Query())
 
 	// https://stackoverflow.com/questions/15407719/in-gos-http-package-how-do-i-get-the-query-string-on-a-post-request
 	other_username := req.URL.Query().Get("with")
 	other_id, err := get_id(other_username)
 	if err != nil {
 		log.Printf("could not get id of other chatter '%v': %v", other_username, err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	my_id, err := get_id(info.Name)
-	if err != nil {
-		log.Printf("could not get id of self '%v': %v", other_username, err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -188,7 +180,7 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	room := join(my_id, other_id, conn)
+	room := join(info.Id, other_id, conn)
 
 	go func () {
 		defer func () {
@@ -205,14 +197,49 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 			}
 
 			if messageType == ws.CloseMessage {
-				leave(my_id, other_id)
+				leave(info.Id, other_id)
 				return
 			}
 
-			send(room, my_id, other_id, string(messageContent))
+			send(room, info.Id, other_id, string(messageContent))
 		}
 	} ()
 	return
+}
+
+func chat_history_handler(rw http.ResponseWriter, req *http.Request) {
+	ok, info := check_auth(rw, req)
+	if !ok { return }
+
+	other_username, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Println("chat_history_handler:", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	other_id, err := get_id(string(other_username))
+	if err != nil {
+		log.Println("chat_history_handler:", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	history, err := get_chat_history(info.Id, other_id, 100)
+	if err != nil {
+		log.Println("chat_history_handler:", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	history_str, err := json.Marshal(history)
+	if err != nil {
+		log.Println("chat_history_handler:", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	respond(rw, http.StatusOK, string(history_str))
 }
 
 func search_handler(rw http.ResponseWriter, req *http.Request) {
@@ -220,23 +247,29 @@ func search_handler(rw http.ResponseWriter, req *http.Request) {
 	if !ok { return }
 
 	searchterm, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Println("search_handler:", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	results, err := search_by_interest(string(searchterm), info.Name, 100)
-
 	if err != nil {
-		log.Printf("search_handler: %v", err)
+		log.Println("search_handler:", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	reslts_str, err := json.Marshal(results)
+	results_str, err := json.Marshal(results)
 	if err != nil {
-		log.Printf("search_handler: %v", err)
+		log.Println("search_handler:", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	respond(rw, http.StatusOK, string(reslts_str))
+	respond(rw, http.StatusOK, string(results_str))
 }
+
 func set_interest_handler(rw http.ResponseWriter, req *http.Request) {
 	ok, info := check_auth(rw, req)
 	if !ok { return }

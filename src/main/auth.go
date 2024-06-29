@@ -137,6 +137,7 @@ func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 }
 
 type UserInfo struct {
+	Id       int    `json:"id"`
 	Name     string `json:"name"`
 	Role     string `json:"role"`
 	Interest string `json:"interest"`
@@ -150,8 +151,7 @@ func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, inf
 		return false, nil
 	}
 
-	var name string
-	name, err = get_name_from_session(session_cookie.Value)
+	info, err = get_info_from_session(session_cookie.Value)
 	if err != nil {
 		log.Printf("check_auth: %v", err)
 		if err == ErrSessionExpired || err == ErrSessionNotFound {
@@ -162,30 +162,5 @@ func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, inf
 		return false, nil
 	}
 
-	isadmin, err := is_admin(name)
-	if err != nil {
-		log.Printf("check_auth: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return false, nil
-	}
-
-	var role string
-	if isadmin {
-		role = "admin"
-	} else {
-		role = "chatter"
-	}
-
-	interest, err := get_interest(name)
-	if err != nil {
-		log.Printf("check_auth: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return false, nil
-	}
-
-	return true, &UserInfo{
-		Role:     role,
-		Name:     name,
-		Interest: interest,
-	}
+	return true, info
 }
