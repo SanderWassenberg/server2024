@@ -25,7 +25,12 @@ func main() {
 	pwhash.Threads    = config.Argon2_default_threads
 	pwhash.Memory_KiB = config.Argon2_default_memory_KiB
 	pwhash.KeyLen     = config.Argon2_default_key_len
-	if !pwhash.ValidateSettings() { return }
+
+	err := pwhash.ValidateSettings()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	// pwhash.ShowcaseHashSpeed()
 

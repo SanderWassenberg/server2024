@@ -62,8 +62,9 @@ func generate_session_token() string {
 }
 
 func is_valid_username(s string) bool {
+    if len(s) == 0 { return false }
     for _, r := range s {
-    	allowed := unicode.IsLetter(r) || r == '_'
+    	allowed := unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
         if !allowed { return false }
     }
     return true

@@ -47,6 +47,10 @@ func verify_utf8_string_len(str string, lim int) (length any, ok bool) {
 	return l, (l <= lim)
 }
 
+func is_valid_email(email string) bool {
+	return email_regexp.MatchString(email)
+}
+
 func verify_api_key() {
 	// How to verify: https://stackoverflow.com/questions/61658558/how-to-test-sendgrid-api-key-is-valid-or-not-without-sending-emails
 
@@ -113,7 +117,7 @@ func contact_handler(rw http.ResponseWriter, req *http.Request) {
 		respond_fmt(rw, http.StatusBadRequest, "Email length should be <100, was %v", count)
 		return
 	}
-	if ok := email_regexp.MatchString(cd.Email); !ok {
+	if ok := is_valid_email(cd.Email); !ok {
 		respond(rw, http.StatusBadRequest, "Invalid email")
 		return
 	}

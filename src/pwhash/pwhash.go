@@ -19,15 +19,16 @@ var Threads    uint8
 var Memory_KiB uint32
 var KeyLen     uint32
 
-func ValidateSettings() bool {
+func ValidateSettings() (err error) {
+
 	mem_ok     := Memory_KiB >= uint32(Threads)*8
 	keylen_ok  := KeyLen >= 4
 	threads_ok := Threads >= 1
-	if !mem_ok     { log.Printf("Password hashing algorithm Argon2 requires that the given memory be at least %vKiB (8 times the number of threads, which is set to %v)", Threads*8, Threads) }
-	if !keylen_ok  { log.Printf("Password hashing algorithm Argon2 requires that the key length be at least 4") }
-	if !threads_ok { log.Printf("Password hashing algorithm Argon2 needs at least 1 thread to run") }
+	if !mem_ok     { errors.Join(err, errors.New(fmt.Sprintf("Password hashing algorithm Argon2 requires that the given memory be at least %vKiB (8 times the number of threads, which is set to %v)", Threads*8, Threads))) }
+	if !keylen_ok  { errors.Join(err, errors.New("Password hashing algorithm Argon2 requires that the key length be at least 4")) }
+	if !threads_ok { errors.Join(err, errors.New("Password hashing algorithm Argon2 needs at least 1 thread to run")) }
 
-	return mem_ok && keylen_ok && threads_ok
+	return
 }
 
 // package docs: https://pkg.go.dev/golang.org/x/crypto/argon2?utm_source=godoc#hdr-Argon2id
