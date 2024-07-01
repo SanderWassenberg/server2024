@@ -3,7 +3,7 @@ import { } from "./popup-container.js"; // for import order, and so we dont have
 
 const key = 'gdpr-consent';
 
-export let consent = localStorage.getItem(key);
+export let consent = get_cookie(key);
 
 const make_body = new_template(`
 <p>Deze site gebruikt cookies voor functionaliteiten zoals inloggen. Accepteer je de cookies? </p>
@@ -46,10 +46,9 @@ export class GDPRPopup extends HTMLElement {
 
 		const handler = e => {
 			const choice = e.target.dataset["choice"];
-			localStorage.setItem(key, choice);
 			consent = choice;
 			if (cookies_allowed()) {
-				document.cookie = `gdpr-consent=${choice}; path=/; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+				document.cookie = `${key}=${choice}; path=/; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
 			}
 			hide(this, true);
 		}
@@ -59,4 +58,12 @@ export class GDPRPopup extends HTMLElement {
 			btns[i].addEventListener("click", handler);
 		}
 	}
+}
+
+
+function get_cookie(name) {
+	const prefix = `${name}=`;
+	return document.cookie.split("; ")
+		.find((row) => row.startsWith(prefix))
+		?.split("=")[1];
 }

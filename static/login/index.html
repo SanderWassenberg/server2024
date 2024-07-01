@@ -25,11 +25,12 @@
 			<div><label for="password">Password<br>
 			<input required type="password" id="password" name="password" style="width: 100%; box-sizing: border-box;"></label></div>
 
-			<div><label for="otp_code">2FA Code (dit veld wordt genegeerd als je geen 2FA hebt ingesteld)<br>
+			<div><label for="otp_code">2FA Code (you can leave this empty if 2FA is not enabled on your account)<br>
 			<input type="text" id="otp_code" name="otp_code" style="width: 100%; box-sizing: border-box;"></label></div>
 
 			<button id="login_btn" type="submit">Login</button>
 
+			<a href="/signup/">Signup page</a>
 			<div hidden class="spinner" style="align-self: center; width: 35px;"></div>
 			<p hidden id="notif" style="align-self: center; color: red;">This is a response message</p>
 		</form>

@@ -80,17 +80,6 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 	}
 }
 
-
-
-.outline-red {
-	outline-color: red;
-	outline-style: solid;
-	outline-width: 5px;
-	outline-offset: -5px;
-}
-
-
-
 .flex-row {
 	display: flex;
 	flex-direction: row;
@@ -118,8 +107,6 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .g20 {
 	gap: 20px;
 }
-
-
 
 .spinner {
 	box-sizing: border-box;
@@ -173,7 +160,6 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 .search-table tr:nth-child(2n) {
 	background: #EEE;
 }
-
 .search-table :is(td, th):first-child {
 	padding-left: 20px;
 }
@@ -184,9 +170,10 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 
 .search-table :is(.ban, .chat) {
 	font-size: 30px;
+	text-align: center;
 }
 .search-table th:is(.ban, .chat) {
-	width: min-content; /* sets the col width */
+	width: 35px; /* min-content doesnt work in chrome */
 	visibility: hidden; /* we use the content to determine the width, but we don't actually want to render it here */
 }
 
@@ -216,7 +203,6 @@ input[type="text"], input[type="email"], input[type="password"], textarea {
 	border-radius: 20px 20px 20px 0px;
 	align-self: start;
 }
-
 .msg.self {
 	background: lightgreen;
 	border-radius: 20px 20px 0px 20px;

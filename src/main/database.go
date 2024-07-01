@@ -101,14 +101,14 @@ var ErrUserAlreadyExists = errors.New("user already exists")
 func create_chatter(name, password string, admin bool) (int, error) {
 	{ // check if exists, because generating a password hash is expensive.
 		exists := false
-		db.QueryRow(`SELECT 1 FROM "Users" where "Username" = ?`, name).Scan(&exists)
+		db.QueryRow(`SELECT 1 FROM "Users" WHERE "Username" = ?`, name).Scan(&exists)
 		if exists { return 0, ErrUserAlreadyExists }
 	}
 
 	hash, err := pwhash.EncodePassword(password)
 	if err != nil { log.Println("ERR: failed to generate encoded hash:", err); return 0, err }
 
-	result, err := db.Exec("INSERT INTO Users (Username, PasswordHash, Admin) VALUES(?, ?, ?)", name, hash, admin)
+	result, err := db.Exec(`INSERT INTO "Users" ("Username", "PasswordHash", "Admin") VALUES (?, ?, ?)`, name, hash, admin)
 	if err != nil { log.Println("ERR: create user exec:", err); return 0, err }
 
 	id, err := result.LastInsertId()
@@ -122,7 +122,7 @@ func create_chatter(name, password string, admin bool) (int, error) {
 
 func check_login(name, password string) bool {
 	var hash string
-	err := db.QueryRow("SELECT PasswordHash FROM Users WHERE Username = ?", name).Scan(&hash)
+	err := db.QueryRow(`SELECT "PasswordHash" FROM "Users" WHERE "Username" = ?`, name).Scan(&hash)
 	if err != nil {
 		log.Println("check_login:", err)
 		return false
@@ -132,23 +132,23 @@ func check_login(name, password string) bool {
 }
 
 func set_session(name, token string, exp time.Time) error {
-	_, err := db.Exec("UPDATE Users SET SessionToken = ?, SessionExpirationDate = ? WHERE Username = ?;", token, exp, name)
+	_, err := db.Exec(`UPDATE "Users" SET "SessionToken" = ?, "SessionExpirationDate" = ? WHERE "Username" = ?;`, token, exp, name)
 	return err
 }
 func set_interest(name, interest string) error {
-	_, err := db.Exec("UPDATE Users SET Interest = ? WHERE Username = ?;", interest, name)
+	_, err := db.Exec(`UPDATE "Users" SET "Interest" = ? WHERE "Username" = ?;`, interest, name)
 	return err
 }
 func set_banned(name string, banned bool) error {
-	_, err := db.Exec("UPDATE Users SET Banned = ? WHERE Username = ?;", banned, name)
+	_, err := db.Exec(`UPDATE "Users" SET "Banned" = ? WHERE "Username" = ?;`, banned, name)
 	return err
 }
 func set_otp_enabled(name string, enabled bool) error {
-	_, err := db.Exec("UPDATE Users SET OtpEnabled = ? WHERE Username = ?;", enabled, name)
+	_, err := db.Exec(`UPDATE "Users" SET "OtpEnabled" = ? WHERE "Username" = ?;`, enabled, name)
 	return err
 }
 func set_otp_secret(name string, secret string) error {
-	_, err := db.Exec("UPDATE Users SET OtpSecret = ? WHERE Username = ?;", secret, name)
+	_, err := db.Exec(`UPDATE "Users" SET "OtpSecret" = ? WHERE "Username" = ?;`, secret, name)
 	return err
 }
 
@@ -177,7 +177,7 @@ func get_info_from_session(session_token string) (info *UserInfo, err error) {
 	info = &UserInfo{}
 
 	err = db.QueryRow(
-		"SELECT SessionExpirationDate, Id, Username, Interest, Admin FROM Users WHERE SessionToken = ?",
+		`SELECT "SessionExpirationDate", "Id", "Username", "Interest", "Admin" FROM "Users" WHERE "SessionToken" = ?`,
 		session_token,
 	).Scan(&exp, &info.Id, &info.Name, &info.Interest, &is_admin)
 	if err != nil {
@@ -222,12 +222,12 @@ func search_by_interest(match, name string, limit int) ([]SearchResultRow, error
 	log.Printf("user %v searched for %v", name, match)
 
 	rows, err := db.Query(`
-SELECT Username, Interest
-FROM Users
-WHERE Banned != TRUE
-	AND Interest LIKE ? ESCAPE '\'
-	AND Username != ?
-ORDER BY Username ASC
+SELECT "Username", Interest
+FROM "Users"
+WHERE "Banned" != TRUE
+	AND "Interest" LIKE ? ESCAPE '\'
+	AND "Username" != ?
+ORDER BY "Username" ASC
 LIMIT ?;
 `, match, name, limit)
 	if err != nil {
@@ -256,7 +256,7 @@ LIMIT ?;
 
 func save_message(my_id, other_id int, text string) error {
 	_, err := db.Exec( // not using quotes for the column "From" will confuse SQL because FROM is also a keyword.
-		`INSERT INTO Messages ("From", "To", "Text") VALUES (?, ?, ?)`,
+		`INSERT INTO "Messages" ("From", "To", "Text") VALUES (?, ?, ?)`,
 		my_id, other_id, text,
 	)
 	if err != nil {

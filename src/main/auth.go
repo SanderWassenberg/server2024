@@ -17,6 +17,7 @@ import (
 	// "strconv"
 	// "strings"
 	"time"
+	"unicode"
 	// "unicode/utf8"
 	// "src/pwhash"
 
@@ -58,16 +59,19 @@ func generate_session_token() string {
 	return base64.StdEncoding.EncodeToString(buf) // It's bad to put session tokens in URL, so don't use URLEncoding.
 }
 
+func IsValidUsername(s string) bool {
+    for _, r := range s {
+    	allowed := unicode.IsLetter(r) || r == '_'
+        if !allowed { return false }
+    }
+    return true
+}
+
 type LoginData struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	OtpCode  string `json:"otp_code"`
 }
-
-// type LoginResponse struct {
-// 	SessionToken string `json:"sessionToken"`
-// 	Role string `json:"role"`
-// }
 
 func login_handler(rw http.ResponseWriter, req *http.Request) {
 	var ld LoginData
@@ -126,8 +130,10 @@ func signup_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// should probably not allow all strings as usernames,
-	// currently you can have usernames with spaces and special characters and shit and that's probably not good.
+	if !IsValidUsername(ld.Username) {
+		respond(rw, http.StatusBadRequest, "Username may only contain letters and underscores.")
+		return
+	}
 
 	_, err := create_chatter(ld.Username, ld.Password, false)
 	if err != nil {
