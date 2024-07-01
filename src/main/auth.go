@@ -19,6 +19,11 @@ import (
 	"time"
 	// "unicode/utf8"
 	// "src/pwhash"
+
+	"github.com/pquerna/otp/totp"
+	"bytes"
+	"io"
+	"image/png"
 )
 
 const SessionTokenCookieName = "session_token"
@@ -56,6 +61,7 @@ func generate_session_token() string {
 type LoginData struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	OtpCode  string `json:"otp_code"`
 }
 
 // type LoginResponse struct {
@@ -69,6 +75,22 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 		log.Printf("login: %v", err)
 		rw.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	otp_info, err := get_otp_info(ld.Username)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("login_handler get_otp_info:", err)
+		return
+	}
+
+	if otp_info.enabled == true {
+		valid := totp.Validate(ld.OtpCode, otp_info.secret)
+		if !valid {
+			respond(rw, http.StatusUnauthorized, "Failed 2FA")
+			log.Println("login_handler failed 2fa for user", ld.Username)
+			return
+		}
 	}
 
 	if !check_login(ld.Username, ld.Password) {
@@ -137,7 +159,7 @@ func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 }
 
 type UserInfo struct {
-	Id       int    `json:"id"`
+	Id       int    // Secret! No json-mapping, don't send this to users!
 	Name     string `json:"name"`
 	Role     string `json:"role"`
 	Interest string `json:"interest"`
@@ -163,4 +185,102 @@ func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, inf
 	}
 
 	return true, info
+}
+
+func otp_generate_handler(rw http.ResponseWriter, req *http.Request) {
+	ok, info := check_auth(rw, req)
+	if !ok {
+		return
+	}
+
+	otp_info, err := get_otp_info(info.Name)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_generate get_otp_info:", err)
+		return
+	}
+
+	if otp_info.enabled == true {
+		respond(rw, http.StatusBadRequest, "Unexpected request. 2FA already enabled on this account")
+		log.Println("otp_generate unexpected: ", otp_info)
+		return
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer: "sandershowcase.hbo-ict.org",
+		AccountName: info.Name,
+	})
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_generate totp.Generate:", err)
+		return
+	}
+
+
+	// Convert TOTP key into a QR code encoded as a PNG image.
+	var buf bytes.Buffer
+	buf.Write([]byte("data:text/plain;base64,"))
+	base64encoder := base64.NewEncoder(base64.StdEncoding, &buf)
+	img, err := key.Image(200, 200)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_generate key.image:", err)
+		return
+	}
+	png.Encode(base64encoder, img)
+
+
+	encoded_bytes, err := io.ReadAll(&buf)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_generate io.readall:", err)
+		return
+	}
+
+	err = set_otp_secret(info.Name, key.Secret())
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_generate set_otp_secret:", err)
+		return
+	}
+
+	respond(rw, http.StatusOK, string(encoded_bytes))
+}
+
+func otp_enable_handler(rw http.ResponseWriter, req *http.Request) {
+	ok, info := check_auth(rw, req)
+	if !ok {
+		return
+	}
+
+	passcode, err := io.ReadAll(req.Body)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_enable io.readall:", err)
+		return
+	}
+
+	otp_info, err := get_otp_info(info.Name)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("otp_enable get_otp_info:", err)
+		return
+	}
+	if otp_info.secret == "" || otp_info.enabled == true { // no secret, or already enabled
+		respond(rw, http.StatusBadRequest, "Unexpected request. Server was not waiting for otp to be enabled on this account.")
+		log.Println("otp_enable unexpected: ", otp_info)
+		return
+	}
+
+	valid := totp.Validate(string(passcode), otp_info.secret)
+
+	if !valid {
+		respond(rw, http.StatusBadRequest, "incorrect otp passcode, ")
+		log.Println("otp_enable failed to validate")
+		return
+	}
+
+	set_otp_enabled(info.Name, true)
+
+	rw.WriteHeader(http.StatusOK)
 }

@@ -10,6 +10,10 @@ const search_table   = document.querySelector(".search-table tbody");
 const search_input   = document.querySelector("#search_input");
 const search_spinner = document.querySelector("#search_spinner");
 const username       = document.querySelector("#username");
+const otp_btn        = document.querySelector("#otp_btn");
+const otp_qr_img     = document.querySelector("#otp_qr_img");
+const otp_dialog     = document.querySelector("#otp_dialog");
+const otp_input      = document.querySelector("#otp_input");
 
 (async () => {
 	interest_form.addEventListener("submit", set_interest);
@@ -26,6 +30,27 @@ const username       = document.querySelector("#username");
 	search();
 })();
 
+otp_dialog.addEventListener("close", (e) => {
+	otp_qr_img.src = "";
+});
+
+otp_btn.addEventListener("click", async (e) => {
+	let response = await api_post("/otp/generate", "");
+	if (!await check_response(response)) return;
+
+	otp_qr_img.src = await response.text();
+
+	otp_dialog.onsubmit = async (e) => {
+		let passcode = otp_input.value;
+		otp_input.value = "";
+
+		let response = await api_post("/otp/enable", passcode);
+		if (!await check_response(response)) return;
+		set_notif("succesfully enabled 2fa for this account!", "green");
+	};
+
+	otp_dialog.showModal();
+});
 
 async function set_interest(e) {
 	const response = await api_post("/set_interest", interest_input.value);

@@ -15,9 +15,13 @@
 <body class="flex-row-center">
 	<div class="make-it-responsive-bordered flex-col">
 		<div class="flex-col g20 p20">
-			<a href="/" class="icon-button" style="align-self: start;"><i class="fa-solid fa-house"></i></a>
+			<div class="flex-row" style="justify-content: space-between; align-items: center;">
+				<a href="/" class="icon-button" style="align-self: start;"><i class="fa-solid fa-house"></i></a>
+				<h2 style="float: right;">Logged in as <span id="username" style="color: #0087ff;"></span></h2>
+				<button id="otp_btn" style="float: right;">Enable 2FA</button>
+			</div>
 
-			<h1 style="margin-bottom: 0;">Search - <span id="username"></span></h1>
+			<h1 style="margin-bottom: 0;">Search</h1>
 
 			<form id="interest_form" method="dialog">
 				<label for="interest_input">Your interest (so people can find you)</label>
@@ -38,6 +42,7 @@
 		</div>
 
 		<p id="notif" style="align-self: center; color: red;"></p>
+
 
 		<table class="search-table">
 			<thead>
@@ -64,6 +69,14 @@
 
 	<popup-container>
 		<gdpr-popup></gdpr-popup>
+		<dialog id="otp_dialog" style="max-width: 400px;">
+			<p>Scan this image in your 2FA app to add this site, then fill in the passcode it displays. Doing so will enable 2FA for your account. (ESC to close)</p>
+			<img id="qr_img" style="width: -moz-available; width: -webkit-fill-available; image-rendering: pixelated;">
+			<form method="dialog" class="flex-row-center" style="gap: 20px; flex-wrap: wrap;">
+				<input id="otp_input" type="text">
+				<button>Submit</button>
+			</form>
+		</dialog>
 	</popup-container>
 </body>
 </html>

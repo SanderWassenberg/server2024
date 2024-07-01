@@ -14,6 +14,10 @@ h1,h2,h3,h4,h5,h6 {
 	margin-bottom: 10px;
 }
 
+dialog::backdrop {
+	background: #111111AA;
+}
+
 button, input[type="submit"] {
 	border: 5px solid black;
 	background: white;

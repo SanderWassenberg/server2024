@@ -70,6 +70,8 @@ func main() {
 	http.Handle("POST /api/search",       Wrap(search_handler))
 	http.Handle("POST /api/set_interest", Wrap(set_interest_handler))
 	http.Handle("POST /api/ban",          Wrap(ban_handler))
+	http.Handle("POST /api/otp/generate", Wrap(otp_generate_handler))
+	http.Handle("POST /api/otp/enable",   Wrap(otp_enable_handler))
 	http.HandleFunc("POST /api/wait", func (rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(60*time.Second)
 		rw.WriteHeader(http.StatusOK)
@@ -182,7 +184,9 @@ func wait_until_interrupt() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	<-stop // blocks until the channel receives a value
+	signal_val := <-stop // blocks until the channel receives a value
+
+	fmt.Println(signal_val)
 
 	// Starts a goroutine that after spamming Ctrl-C a bunch, will force the program to shut down by calling panic()
 	go func() {

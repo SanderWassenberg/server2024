@@ -29,14 +29,16 @@ func init_db() {
 	{
 		result, err := db.Exec(`
 CREATE TABLE "Users" (
-	"Id"					INTEGER,
-	"Username"				TEXT NOT NULL UNIQUE,
-	"PasswordHash"			TEXT NOT NULL,
-	"SessionToken"			TEXT NOT NULL DEFAULT "",
-	"SessionExpirationDate"	DATETIME NOT NULL DEFAULT "0001-01-01 00:00:00+00:00",
-	"Interest"				TEXT NOT NULL DEFAULT "",
-	"Banned"				INTEGER NOT NULL DEFAULT 0,
-	"Admin"					INTEGER NOT NULL DEFAULT 0,
+	"Id"                    INTEGER,
+	"Username"              TEXT     NOT NULL UNIQUE,
+	"PasswordHash"          TEXT     NOT NULL,
+	"SessionToken"          TEXT     NOT NULL DEFAULT "",
+	"SessionExpirationDate" DATETIME NOT NULL DEFAULT "0001-01-01 00:00:00+00:00",
+	"Interest"              TEXT     NOT NULL DEFAULT "",
+	"Banned"                INTEGER  NOT NULL DEFAULT 0,
+	"Admin"                 INTEGER  NOT NULL DEFAULT 0,
+	"OtpEnabled"            INTEGER  NOT NULL DEFAULT 0,
+	"OtpSecret"             TEXT     NOT NULL DEFAULT "",
 	PRIMARY KEY("Id" AUTOINCREMENT)
 );
 `)
@@ -140,6 +142,23 @@ func set_interest(name, interest string) error {
 func set_banned(name string, banned bool) error {
 	_, err := db.Exec("UPDATE Users SET Banned = ? WHERE Username = ?;", banned, name)
 	return err
+}
+func set_otp_enabled(name string, enabled bool) error {
+	_, err := db.Exec("UPDATE Users SET OtpEnabled = ? WHERE Username = ?;", enabled, name)
+	return err
+}
+func set_otp_secret(name string, secret string) error {
+	_, err := db.Exec("UPDATE Users SET OtpSecret = ? WHERE Username = ?;", secret, name)
+	return err
+}
+
+type OtpInfo struct {
+	enabled bool
+	secret  string
+}
+func get_otp_info(name string) (info OtpInfo, err error) {
+	err = db.QueryRow(`SELECT "OtpSecret", "OtpEnabled" FROM "Users" WHERE "Username" = ?`, name).Scan(&info.secret, &info.enabled)
+	return
 }
 
 // func is_admin(name string) (isadmin bool, err error) {
