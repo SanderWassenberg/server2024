@@ -14,20 +14,45 @@ import (
 	// which adds sqlite3 as a driver for database/sql to use
 )
 
+
+
+// Types
+
+type OtpInfo struct {
+	enabled bool
+	secret  string
+}
+
+type SearchResultRow struct {
+	Username string `json:"username"`
+	Interest string `json:"interest"`
+}
+
+type MessageHistory struct {
+	Message []string `json:"message"`
+	Side    string   `json:"side"` // string of 1's and 0's. 1 means the message at this index was sent by ourselves, 0 means it was sent by the other user.
+}
+
+
+
+// Global vars
+
 var db *sql.DB
 
-func init_db() {
+var ErrUserAlreadyExists = errors.New("user already exists")
+var ErrSessionExpired    = errors.New("session expired")
+var ErrSessionNotFound   = errors.New("session not found")
+
+
+
+// Functions
+
+func init_db() error {
 	var err error
 	db, err = sql.Open("sqlite3", "showcase.sqlite")
-	if err != nil {
-		panic(err)
-	}
+	if err != nil { return err }
 
-	// Don't use prepared statements for things that modify tables that may be removed.
-	// To prepare the statement, it checks if the table it modifies exists, if it doesn't the statment fails to be prepared.
-
-	{
-		result, err := db.Exec(`
+	init_exec("create Users table", `
 CREATE TABLE "Users" (
 	"Id"                    INTEGER,
 	"Username"              TEXT     NOT NULL UNIQUE,
@@ -42,33 +67,17 @@ CREATE TABLE "Users" (
 	PRIMARY KEY("Id" AUTOINCREMENT)
 );
 `)
-// NOTE: this cannot be a strict table because then reading dates becomes more of a hassle.
-// datetime isn't actually a datatype (it's actually converts to TEXT), strict tables don't allow it.
-// however, the sqlite driver only allows scanning a date if the table has DATETIME as the type.
-// the alternative is to have the field be TEXT and always parse the strings manually after scanning them as strings
+// NOTE: this table cannot be STRICT because then reading dates becomes more of a hassle. Because...
+// DATETIME isn't actually a datatype (it's actually converts to TEXT), so STRICT tables don't allow it.
+// However, the sqlite driver only allows scanning a time.Time if the table has DATETIME as the type.
+// If you make the table STRICT, then that column must be TEXT and you have to parse the strings back to time.Time manually.
 // So you either have nice scanning and no strictness, or strictness but annoying scanning.
-		_ = result
-		if err != nil {
-			log.Println("Failed to create Users table:", err)
-		} else {
-			log.Println("Created Users table.")
-		}
-	}
 
-	{
-		result, err := db.Exec(`
+	init_exec("create Username index", `
 CREATE UNIQUE INDEX "idx_Username" ON "Users" ("Username");
 `)
-		_ = result
-		if err != nil {
-			log.Println("Failed to create Username index:", err)
-		} else {
-			log.Println("Created Username index.")
-		}
-	}
 
-	{
-		result, err := db.Exec(`
+	init_exec("make Messages table", `
 CREATE TABLE "Messages" (
 	"Text"	TEXT	NOT NULL,
 	"To"	INTEGER NOT NULL,
@@ -76,15 +85,17 @@ CREATE TABLE "Messages" (
 	FOREIGN KEY("To") REFERENCES "Users"("Id")
 ) STRICT;
 `)
-		_ = result
-		if err != nil {
-			log.Println("Failed to create Messages table:", err)
-		} else {
-			log.Println("Created Messages table.")
-		}
-	}
 
-	// */
+	return nil
+}
+
+func init_exec(description, sql string) {
+	_, err := db.Exec(sql)
+	if err != nil {
+		log.Println("Could not", description, "because", err)
+	} else {
+		log.Println("init_db:")
+	}
 }
 
 func deinit_db() {
@@ -96,7 +107,52 @@ func deinit_db() {
 	}
 }
 
-var ErrUserAlreadyExists = errors.New("user already exists")
+
+
+// Simple queries
+
+// could change the majority of these to take an id instead of name but that's for later. (not all, at login time we don't have the id yet.)
+func set_session(name, token string, exp time.Time) error {
+	_, err := db.Exec(`UPDATE "Users" SET "SessionToken" = ?, "SessionExpirationDate" = ? WHERE "Username" = ?;`, token, exp, name)
+	return err
+}
+func set_interest(name, interest string) error {
+	_, err := db.Exec(`UPDATE "Users" SET "Interest" = ? WHERE "Username" = ?;`, interest, name)
+	return err
+}
+func set_banned(name string, banned bool) error {
+	_, err := db.Exec(`UPDATE "Users" SET "Banned" = ? WHERE "Username" = ?;`, banned, name)
+	return err
+}
+func set_otp_enabled(name string, enabled bool) error {
+	_, err := db.Exec(`UPDATE "Users" SET "OtpEnabled" = ? WHERE "Username" = ?;`, enabled, name)
+	return err
+}
+func set_otp_secret(name string, secret string) error {
+	_, err := db.Exec(`UPDATE "Users" SET "OtpSecret" = ? WHERE "Username" = ?;`, secret, name)
+	return err
+}
+func save_message(my_id, other_id int, text string) (err error) {
+	_, err = db.Exec(`INSERT INTO "Messages" ("From", "To", "Text") VALUES (?, ?, ?)`, my_id, other_id, text)
+	return
+}
+
+func get_otp_info(name string) (info OtpInfo, err error) {
+	err = db.QueryRow(`SELECT "OtpSecret", "OtpEnabled" FROM "Users" WHERE "Username" = ?`, name).Scan(&info.secret, &info.enabled)
+	return
+}
+func get_id(name string) (id int, err error) {
+	err = db.QueryRow(`SELECT "Id" FROM "Users" WHERE "Username" = ?`, name).Scan(&id)
+	return
+}
+func get_password_hash(name string) (hash string, err error) {
+	err = db.QueryRow(`SELECT "PasswordHash" FROM "Users" WHERE "Username" = ?`, name).Scan(&hash)
+	return
+}
+
+
+
+// More complex queries
 
 func create_chatter(name, password string, admin bool) (int, error) {
 	{ // check if exists, because generating a password hash is expensive.
@@ -120,56 +176,6 @@ func create_chatter(name, password string, admin bool) (int, error) {
 	}
 }
 
-func check_login(name, password string) bool {
-	var hash string
-	err := db.QueryRow(`SELECT "PasswordHash" FROM "Users" WHERE "Username" = ?`, name).Scan(&hash)
-	if err != nil {
-		log.Println("check_login:", err)
-		return false
-	}
-
-	return pwhash.VerifyPassword(password, hash)
-}
-
-func set_session(name, token string, exp time.Time) error {
-	_, err := db.Exec(`UPDATE "Users" SET "SessionToken" = ?, "SessionExpirationDate" = ? WHERE "Username" = ?;`, token, exp, name)
-	return err
-}
-func set_interest(name, interest string) error {
-	_, err := db.Exec(`UPDATE "Users" SET "Interest" = ? WHERE "Username" = ?;`, interest, name)
-	return err
-}
-func set_banned(name string, banned bool) error {
-	_, err := db.Exec(`UPDATE "Users" SET "Banned" = ? WHERE "Username" = ?;`, banned, name)
-	return err
-}
-func set_otp_enabled(name string, enabled bool) error {
-	_, err := db.Exec(`UPDATE "Users" SET "OtpEnabled" = ? WHERE "Username" = ?;`, enabled, name)
-	return err
-}
-func set_otp_secret(name string, secret string) error {
-	_, err := db.Exec(`UPDATE "Users" SET "OtpSecret" = ? WHERE "Username" = ?;`, secret, name)
-	return err
-}
-
-type OtpInfo struct {
-	enabled bool
-	secret  string
-}
-func get_otp_info(name string) (info OtpInfo, err error) {
-	err = db.QueryRow(`SELECT "OtpSecret", "OtpEnabled" FROM "Users" WHERE "Username" = ?`, name).Scan(&info.secret, &info.enabled)
-	return
-}
-
-// func is_admin(name string) (isadmin bool, err error) {
-// 	err = db.QueryRow("SELECT Admin FROM Users WHERE Username = ?", name).Scan(&isadmin)
-// 	return
-// }
-
-var ErrSessionExpired  = errors.New("session expired")
-var ErrSessionNotFound = errors.New("session not found")
-
-
 func get_info_from_session(session_token string) (info *UserInfo, err error) {
 
 	var exp      time.Time
@@ -179,7 +185,7 @@ func get_info_from_session(session_token string) (info *UserInfo, err error) {
 	err = db.QueryRow(
 		`SELECT "SessionExpirationDate", "Id", "Username", "Interest", "Admin" FROM "Users" WHERE "SessionToken" = ?`,
 		session_token,
-	).Scan(&exp, &info.Id, &info.Name, &info.Interest, &is_admin)
+	).Scan(&exp, &info.id, &info.Name, &info.Interest, &is_admin)
 	if err != nil {
 		if err == sql.ErrNoRows { err = ErrSessionNotFound }
 		return nil, err
@@ -198,38 +204,22 @@ func get_info_from_session(session_token string) (info *UserInfo, err error) {
 	return info, nil
 }
 
-// func get_interest(name string) (interest string, err error) {
-// 	err = db.QueryRow("SELECT Interest FROM Users WHERE Username = ?", name).Scan(&interest)
-// 	return
-// }
-
-func get_id(name string) (id int, err error) {
-	err = db.QueryRow(`SELECT "Id" FROM "Users" WHERE "Username" = ?`, name).Scan(&id)
-	return
-}
-
-type SearchResultRow struct {
-	Username string `json:"username"`
-	Interest string `json:"interest"`
-}
-func search_by_interest(match, name string, limit int) ([]SearchResultRow, error) {
+func search_by_interest(match string, exclude_id int, limit int) ([]SearchResultRow, error) {
 	// yes this is slow, idgaf, it's a school project, it can suck my ass
 	match = strings.ReplaceAll(match, `\`, `\\`)
 	match = strings.ReplaceAll(match, `%`, `\%`)
 	match = strings.ReplaceAll(match, `_`, `\_`)
 	match = "%" + match + "%"
 
-	log.Printf("user %v searched for %v", name, match)
-
 	rows, err := db.Query(`
 SELECT "Username", Interest
 FROM "Users"
 WHERE "Banned" != TRUE
 	AND "Interest" LIKE ? ESCAPE '\'
-	AND "Username" != ?
+	AND "Id" != ?
 ORDER BY "Username" ASC
 LIMIT ?;
-`, match, name, limit)
+`, match, exclude_id, limit)
 	if err != nil {
 		log.Println("search_by_interest:", err)
 		return nil, err
@@ -252,24 +242,6 @@ LIMIT ?;
 	}
 
 	return results, nil
-}
-
-func save_message(my_id, other_id int, text string) error {
-	_, err := db.Exec( // not using quotes for the column "From" will confuse SQL because FROM is also a keyword.
-		`INSERT INTO "Messages" ("From", "To", "Text") VALUES (?, ?, ?)`,
-		my_id, other_id, text,
-	)
-	if err != nil {
-		log.Println("save_message:", err)
-		return err
-	}
-
-	return nil
-}
-
-type MessageHistory struct {
-	Message []string `json:"message"`
-	Side    string   `json:"side"`
 }
 
 func get_chat_history(id1, id2, limit int) (history *MessageHistory, err error) {

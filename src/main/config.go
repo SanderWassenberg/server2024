@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	SendGrid_api_key        string
-	Port                    string
+	SendGrid_api_key string
+	Port             string
+	Trusted_Origin   string
 
 	Argon2_default_iterations uint32
 	Argon2_default_threads    uint8
@@ -19,17 +20,19 @@ type Config struct {
 
 	Log_Static_File_Requests        bool
 	Log_Static_File_Request_Headers bool
-	Log_Api_Requests         bool
-	Log_Api_Request_Headers  bool
+	Log_Api_Requests                bool
+	Log_Api_Request_Headers         bool
+
 }
 
 var config = Config{}
 
-func load_config_or_exit() {
+func load_config() (ok bool) {
 	const filename = "secret.config"
 
-	if err := gc.LoadConfig(filename, &config); err != nil {
-
+	err := gc.LoadConfig(filename, &config)
+	ok   = err == nil
+	if !ok {
 		fmt.Printf("Error(s) loading config.\n%v\n", err)
 
 		if errors.Is(err, os.ErrNotExist) {
@@ -48,8 +51,9 @@ The type associated with each key (string, int etc.) is defined in the program.
 You'll be informed of any values that are missing from the config upon startup.
 `, filename)
 		}
-		os.Exit(1)
 	}
+
+	return ok
 }
 
 

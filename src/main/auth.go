@@ -19,7 +19,7 @@ import (
 	"time"
 	"unicode"
 	// "unicode/utf8"
-	// "src/pwhash"
+	"src/pwhash"
 
 	"github.com/pquerna/otp/totp"
 	"bytes"
@@ -27,31 +27,33 @@ import (
 	"image/png"
 )
 
+
+
+// Types
+
+type LoginData struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	OtpCode  string `json:"otp_code"`
+}
+
+type UserInfo struct {
+	id       int    // Must remain lowercase. private = No json-mapping, we don't want to send this to users!
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Interest string `json:"interest"`
+}
+
+
+
+// Constants
+
 const SessionTokenCookieName = "session_token"
 
-// base64 converts every 6 bits to a character.
-// That means you get a 3:4 ratio, where every 3 bytes turn into 4 characters
-// output length is always a multiple of 4.
-// You can however strip padding characters
-// bytes | padded len | stripped len
-// 1		4		2
-// 2		4		3
-// 3		4		4
-// 4		8		6
 
-// ? ? ? ? ? ? ? ?,0 0 0 0 - - - -,- - - - - - - -
-// [         ] [         ] [ padding ] [ padding ]
 
-// ? ? ? ? ? ? ? ?,? ? ? ? ? ? ? ?,0 0 - - - - - -
-// [         ] [         ] [         ] [ padding ]
+// Utility functions
 
-// ? ? ? ? ? ? ? ?,? ? ? ? ? ? ? ?,? ? ? ? ? ? ? ?
-// [         ] [         ] [         ] [         ]
-// 48 bytes is a nice number, it results in a string of length 64
-// 48 bytes = 2^384
-// 24 bytes = 2^192
-// 18 bytes = 2^144
-// a uuid is 2^128, (16 bytes)
 func generate_session_token() string {
 	const n_bytes = 18
 	buf := make([]byte, n_bytes)
@@ -59,7 +61,7 @@ func generate_session_token() string {
 	return base64.StdEncoding.EncodeToString(buf) // It's bad to put session tokens in URL, so don't use URLEncoding.
 }
 
-func IsValidUsername(s string) bool {
+func is_valid_username(s string) bool {
     for _, r := range s {
     	allowed := unicode.IsLetter(r) || r == '_'
         if !allowed { return false }
@@ -67,11 +69,31 @@ func IsValidUsername(s string) bool {
     return true
 }
 
-type LoginData struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	OtpCode  string `json:"otp_code"`
+func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, info *UserInfo) {
+	session_cookie, err := req.Cookie(SessionTokenCookieName)
+	if err != nil {
+		log.Printf("check_auth: %v", err)
+		rw.WriteHeader(http.StatusUnauthorized)
+		return false, nil
+	}
+
+	info, err = get_info_from_session(session_cookie.Value)
+	if err != nil {
+		log.Printf("check_auth: %v", err)
+		if err == ErrSessionExpired || err == ErrSessionNotFound {
+			respond(rw, http.StatusUnauthorized, err.Error())
+		} else {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}
+		return false, nil
+	}
+
+	return true, info
 }
+
+
+
+// Handlers
 
 func login_handler(rw http.ResponseWriter, req *http.Request) {
 	var ld LoginData
@@ -97,7 +119,14 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if !check_login(ld.Username, ld.Password) {
+	hash, err := get_password_hash(ld.Username)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("login_handler get_password_hash:", err)
+		return
+	}
+
+	if !pwhash.VerifyPassword(ld.Password, hash) {
 		rw.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -130,7 +159,7 @@ func signup_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if !IsValidUsername(ld.Username) {
+	if !is_valid_username(ld.Username) {
 		respond(rw, http.StatusBadRequest, "Username may only contain letters and underscores.")
 		return
 	}
@@ -162,35 +191,6 @@ func user_info_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	respond(rw, http.StatusOK, string(info_json))
-}
-
-type UserInfo struct {
-	Id       int    // Secret! No json-mapping, don't send this to users!
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	Interest string `json:"interest"`
-}
-
-func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, info *UserInfo) {
-	session_cookie, err := req.Cookie(SessionTokenCookieName)
-	if err != nil {
-		log.Printf("check_auth: %v", err)
-		rw.WriteHeader(http.StatusUnauthorized)
-		return false, nil
-	}
-
-	info, err = get_info_from_session(session_cookie.Value)
-	if err != nil {
-		log.Printf("check_auth: %v", err)
-		if err == ErrSessionExpired || err == ErrSessionNotFound {
-			respond(rw, http.StatusUnauthorized, err.Error())
-		} else {
-			rw.WriteHeader(http.StatusInternalServerError)
-		}
-		return false, nil
-	}
-
-	return true, info
 }
 
 func otp_generate_handler(rw http.ResponseWriter, req *http.Request) {

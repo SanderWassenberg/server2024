@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"strings"
+	// "strings"
 
 	// "time"
 
@@ -16,16 +16,7 @@ import (
 	// how to websocket: https://www.golinuxcloud.com/golang-websocket/
 )
 
-var upgrader = ws.Upgrader{
-	// ReadBufferSize:  1024,
-	// WriteBufferSize: 1024,
-
-	// https://stackoverflow.com/questions/65034144/how-to-add-a-trusted-origin-to-gorilla-websockets-checkorigin
-	CheckOrigin: func(r *http.Request) bool {
-	    origin := r.Header.Get("Origin")
-	    return origin == "https://sandershowcase.hbo-ict.org" || strings.HasPrefix(origin, "http://localhost")
-	},
-}
+// Types
 
 type Chatrooms struct {
 	Lock sync.Mutex // Lock when joining or leaving, that may remove or create a room
@@ -38,9 +29,28 @@ type Chatroom struct {
 	Conn_2 *ws.Conn // highest id
 }
 
+
+
+// Vars
+
+var upgrader = ws.Upgrader{
+	// ReadBufferSize:  1024,
+	// WriteBufferSize: 1024,
+
+	// https://stackoverflow.com/questions/65034144/how-to-add-a-trusted-origin-to-gorilla-websockets-checkorigin
+	CheckOrigin: func(r *http.Request) bool {
+	    origin := r.Header.Get("Origin")
+	    return origin == config.Trusted_Origin
+	},
+}
+
 var chatrooms = Chatrooms{
 	Rooms: make(map[string]*Chatroom),
 }
+
+
+
+// Utility functions
 
 func my_sort(a, b int) (lo int, hi int) {
 	if a < b {
@@ -95,7 +105,8 @@ func leave(my_id, other_id int) {
 func send(room *Chatroom, my_id, other_id int, text string) {
 	err := save_message(my_id, other_id, text)
 	if err != nil {
-		log.Println("send():", err)
+		log.Println("send() save_message:", err)
+		// still continue
 	}
 
 	var send_conn *ws.Conn
@@ -105,58 +116,18 @@ func send(room *Chatroom, my_id, other_id int, text string) {
 		send_conn = room.Conn_1
 	}
 
-	if send_conn != nil {
-		// do send
-		if err := send_conn.WriteMessage(ws.TextMessage, []byte(text)); err != nil {
-			log.Printf("send() writemsg: %v", err)
-			return
-		}
+	if send_conn == nil { return }
+
+	err = send_conn.WriteMessage(ws.TextMessage, []byte(text))
+	if err != nil {
+		log.Printf("send() writemsg: %v", err)
+		return
 	}
 }
 
-/*
-Dit is het gedoe met mutexes dat je moet doen als je het echt veilig wil maken, maar voor nu, boeie
 
-join():
-	create room id
-	lock rooms
 
-	get room ptr using the id
-	if not present (
-		create room
-		add own conn
-		add room
-	) else (
-		lock room
-		add own conn
-		unlock room
-	)
-
-	unlock rooms
-
-leave():
-	create room id
-	lock rooms
-	get room ptr using the id
-	// it must be present
-
-	lock room
-	remove own conn
-	if no other conn (
-		remove room from rooms
-	)
-	unlock room
-
-	unlock rooms
-
-send():
-	store msg in db
-	lock room
-	if other conn != nil (
-		send over conn
-	)
-	unlock room
-*/
+// Handlers
 
 func chat_handler(rw http.ResponseWriter, req *http.Request) {
 	ok, info := check_auth(rw, req)
@@ -180,7 +151,7 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	room := join(info.Id, other_id, conn)
+	room := join(info.id, other_id, conn)
 
 	go func () {
 		defer func () {
@@ -197,11 +168,11 @@ func chat_handler(rw http.ResponseWriter, req *http.Request) {
 			}
 
 			if messageType == ws.CloseMessage {
-				leave(info.Id, other_id)
+				leave(info.id, other_id)
 				return
 			}
 
-			send(room, info.Id, other_id, string(messageContent))
+			send(room, info.id, other_id, string(messageContent))
 		}
 	} ()
 	return
@@ -225,7 +196,7 @@ func chat_history_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	history, err := get_chat_history(info.Id, other_id, 100)
+	history, err := get_chat_history(info.id, other_id, 100)
 	if err != nil {
 		log.Println("chat_history_handler:", err)
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -253,7 +224,7 @@ func search_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	results, err := search_by_interest(string(searchterm), info.Name, 100)
+	results, err := search_by_interest(string(searchterm), info.id, 100)
 	if err != nil {
 		log.Println("search_handler:", err)
 		rw.WriteHeader(http.StatusInternalServerError)
