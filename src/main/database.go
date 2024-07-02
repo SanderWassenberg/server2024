@@ -94,7 +94,7 @@ func init_exec(description, sql string) {
 	if err != nil {
 		log.Println("Could not", description, "because", err)
 	} else {
-		log.Println("init_db:")
+		log.Println("init_db:", description)
 	}
 }
 
