@@ -1,33 +1,20 @@
 package main
 
 import (
-	// "bytes"
+	"bytes"
 	crypto_rand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-
-	// "errors"
-	// "fmt"
-	// "io"
+	"image/png"
+	"io"
 	"log"
 	"net/http"
-
-	// "os"
-	// "os/signal"
-	// "strconv"
-	// "strings"
+	"src/pwhash"
 	"time"
 	"unicode"
-	// "unicode/utf8"
-	"src/pwhash"
 
 	"github.com/pquerna/otp/totp"
-	"bytes"
-	"io"
-	"image/png"
 )
-
-
 
 // Types
 
@@ -44,13 +31,9 @@ type UserInfo struct {
 	Interest string `json:"interest"`
 }
 
-
-
 // Constants
 
 const SessionTokenCookieName = "session_token"
-
-
 
 // Utility functions
 
@@ -92,8 +75,6 @@ func check_auth(rw http.ResponseWriter, req *http.Request) (authorized bool, inf
 	return true, info
 }
 
-
-
 // Handlers
 
 func login_handler(rw http.ResponseWriter, req *http.Request) {
@@ -102,22 +83,6 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 		log.Printf("login: %v", err)
 		rw.WriteHeader(http.StatusBadRequest)
 		return
-	}
-
-	otp_info, err := get_otp_info(ld.Username)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		log.Println("login_handler get_otp_info:", err)
-		return
-	}
-
-	if otp_info.enabled == true {
-		valid := totp.Validate(ld.OtpCode, otp_info.secret)
-		if !valid {
-			respond(rw, http.StatusUnauthorized, "Failed 2FA")
-			log.Println("login_handler failed 2fa for user", ld.Username)
-			return
-		}
 	}
 
 	hash, err := get_password_hash(ld.Username)
@@ -130,6 +95,22 @@ func login_handler(rw http.ResponseWriter, req *http.Request) {
 	if !pwhash.VerifyPassword(ld.Password, hash) {
 		rw.WriteHeader(http.StatusUnauthorized)
 		return
+	}
+
+	otp_info, err := get_otp_info(ld.Username)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Println("login_handler get_otp_info:", err)
+		return
+	}
+
+	if otp_info.enabled {
+		valid := totp.Validate(ld.OtpCode, otp_info.secret)
+		if !valid {
+			respond(rw, http.StatusUnauthorized, "Failed 2FA")
+			log.Println("login_handler failed 2fa for user", ld.Username)
+			return
+		}
 	}
 
 	session_token := generate_session_token()
@@ -214,7 +195,7 @@ func otp_generate_handler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer: "sandershowcase.hbo-ict.org",
+		Issuer:      "sandershowcase.hbo-ict.org",
 		AccountName: info.Name,
 	})
 	if err != nil {
@@ -222,7 +203,6 @@ func otp_generate_handler(rw http.ResponseWriter, req *http.Request) {
 		log.Println("otp_generate totp.Generate:", err)
 		return
 	}
-
 
 	// Convert TOTP key into a QR code encoded as a PNG image.
 	var buf bytes.Buffer
@@ -235,7 +215,6 @@ func otp_generate_handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	png.Encode(base64encoder, img)
-
 
 	encoded_bytes, err := io.ReadAll(&buf)
 	if err != nil {
